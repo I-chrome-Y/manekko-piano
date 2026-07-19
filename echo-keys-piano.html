@@ -525,9 +525,8 @@
   let curMeasureIndex = 0;    // 次にスケジュールする小節番号
 
   // 入力判定はsetTimeoutの遅延に頼らず、audioCtxの時計から直接判定する。
-  // 今再生中の小節と、切り替わり直後の早押しを受け取るための次の小節を保持する。
-  let liveMeasure = null;
-  let pendingMeasure = null;
+  // 直近の小節1つぶんの情報だけを保持するシンプルな作り。
+  let liveMeasure = null; // { mode, startTime, offsets, duration, pattern }
 
   let currentPattern = new Array(SLOTS).fill(null); // pitch classes or null, shared by a demo measure + its following user measure
   let userAnswers = new Array(SLOTS).fill(undefined);
@@ -578,19 +577,6 @@
       if(d < bestDist){ bestDist = d; bestIdx = i; }
     }
     return { slotIdx: bestIdx, delta: elapsed - offsets[bestIdx] };
-  }
-
-  function findLiveMeasure(now){
-    let bestMeasure = null;
-    let bestScore = Infinity;
-    [liveMeasure, pendingMeasure].forEach((measure) => {
-      if(!measure) return;
-      const elapsed = now - measure.startTime;
-      if(elapsed < -TIMING_WINDOW_S || elapsed >= measure.duration) return;
-      const score = Math.abs(elapsed);
-      if(score < bestScore){ bestScore = score; bestMeasure = measure; }
-    });
-    return bestMeasure;
   }
 
   // ---------- small helper ----------
@@ -810,31 +796,22 @@
     if(!isRunning) return;
     ensureAudio();
     const now = audioCtx.currentTime;
-    // setTimeoutの発火待ちに頼らず、audioCtxの時計から直接「今この瞬間、
-    // どの小節・どのモードが鳴っているか」を求める。これで切り替わり
-    // 直後の入力取りこぼしを防ぐ。
-    const live = findLiveMeasure(now);
-    if(!live) return; // ゲーム開始直後などまだ小節情報がない場合のみ何もしない
-    // 見本中・カウント中・回答中を問わず、いつでも押した瞬間に音を鳴らし、
-    // ◎/△/✕の判定を出す(見た目が暗いだけで操作はいつでも可能)。
+    // audioCtxの時計から直接「今どの小節が回答パートか」を見る(setTimeoutの
+    // 発火待ちに頼らない)。スケジューラは常に約120ms先まで小節を先読みして
+    // いるため、見本の最後120msの時点ですでにliveMeasureは次の回答小節に
+    // 切り替わっている → 結果として見本の最後120msも回答として受け付けられる。
+    const live = liveMeasure;
+    if(!live || live.mode !== "user") return;
     playTone(PC_FREQ[pc], now, 0.16, 0.6, "triangle");
-    {
-      const elapsed = now - live.startTime;
-      const { slotIdx, delta } = findNearestSlot(elapsed, live.offsets);
-      const expected = live.pattern[slotIdx];
-      let tier;
-      if(expected === null || expected !== pc){
-        tier = "wrong";
-      } else {
-        tier = (Math.abs(delta) <= TIMING_WINDOW_S) ? "great" : "near";
-      }
-      judgeFlash(pc, tier);
-      playJudgeSound(tier, now);
-      // 正解数の集計(採点)は「回答」小節でのみ行う
-      if(live.mode === "user" && userAnswers[slotIdx] === undefined){
-        userAnswers[slotIdx] = pc;
-        userTiming[slotIdx] = (tier === "great") ? "great" : "near";
-      }
+    const elapsed = now - live.startTime; // 負の値(まだ小節開始前)も許容
+    const { slotIdx, delta } = findNearestSlot(elapsed, live.offsets);
+    const expected = live.pattern[slotIdx];
+    const tier = (expected !== pc) ? "wrong" : (Math.abs(delta) <= TIMING_WINDOW_S ? "great" : "near");
+    judgeFlash(pc, tier);
+    playJudgeSound(tier, now);
+    if(userAnswers[slotIdx] === undefined){
+      userAnswers[slotIdx] = pc;
+      userTiming[slotIdx] = (tier === "great") ? "great" : "near";
     }
   }
 
@@ -909,16 +886,15 @@
     const time = measureStartTime + measureOffsets[slotIdx];
     scheduleSlot(slotIdx, measureIndex, time, measureOffsets, measureDuration);
     if(slotIdx === 0){
-      // この小節のタイミングとパターンを保持して、audioCtxの時計から
-      // 直接「今どの小節・どのモードが鳴っているか」を求められるようにする。
-      const mode = modeForMeasure(measureIndex);
-      liveMeasure = pendingMeasure || liveMeasure;
-      pendingMeasure = {
-        mode,
+      // scheduleSlot内でパターン生成(デモ小節の場合)が終わった直後の状態を
+      // そのままliveMeasureに上書きする。以後この小節の入力判定は
+      // setTimeoutの発火を待たず、ここから直接行う。
+      liveMeasure = {
+        mode: modeForMeasure(measureIndex),
         startTime: measureStartTime,
-        offsets: measureOffsets.slice(),
+        offsets: measureOffsets,
         duration: measureDuration,
-        pattern: currentPattern.slice(),
+        pattern: currentPattern,
       };
     }
     curSlotIdx += 1;
@@ -933,7 +909,7 @@
   }
 
   function scheduler(){
-    while(measureStartTime + measureOffsets[curSlotIdx] <= audioCtx.currentTime + SCHEDULE_AHEAD_S){
+    while(measureStartTime + measureOffsets[curSlotIdx] < audioCtx.currentTime + SCHEDULE_AHEAD_S){
       advance();
     }
     schedulerId = window.setTimeout(scheduler, LOOKAHEAD_MS);
@@ -951,7 +927,6 @@
     userTiming = new Array(SLOTS).fill(null);
     slotResults = new Array(SLOTS).fill(null);
     liveMeasure = null;
-    pendingMeasure = null;
     prevMode = null;
     prevSlotIdx = -1;
     correctTotal = 0;
