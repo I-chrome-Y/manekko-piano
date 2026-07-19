@@ -933,7 +933,7 @@
   }
 
   function scheduler(){
-    while(measureStartTime + measureOffsets[curSlotIdx] < audioCtx.currentTime + SCHEDULE_AHEAD_S){
+    while(measureStartTime + measureOffsets[curSlotIdx] <= audioCtx.currentTime + SCHEDULE_AHEAD_S){
       advance();
     }
     schedulerId = window.setTimeout(scheduler, LOOKAHEAD_MS);
