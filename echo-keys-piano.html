@@ -36,6 +36,7 @@
     font-family:var(--font-sans);
     -webkit-tap-highlight-color:transparent;
     overflow-x:hidden;
+    touch-action:manipulation; /* ダブルタップでの画面ズームを抑止 */
   }
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
@@ -396,12 +397,17 @@
     四拍子のクリックを鳴らす(メトロノーム)
   </label>
 
-  <p class="hint">遊び方: モード設定でキー・スケール・ビートを選び、レベルを決めたら「はじめる」。鍵盤はいつでも触れて音を鳴らせます(見本中は暗く表示されますが操作は可能)。バッジが「どうぞ!」の1小節では、おなじ音を同じタイミングで弾くと正解数にカウントされます。タイミングがぴったりなら◎、音は合っているけど少しズレていたら△、違う音や無音なら✕。小節内が全部◎のときだけ正解数が+1されます。「シャッフル」ビートはリズムがはねる感じになります。リズムはずっと途切れずに続きます。</p>
+  <p class="hint">遊び方: モード設定でキー・スケール・ビートを選び、レベルを決めたら「はじめる」。見本の小節では鍵盤は弾けません(見本の最後の一瞬だけ、次の回答の1音目として先取りして弾けます)。バッジが「どうぞ!」に変わったら、その1小節でおなじ音を同じタイミングで弾いてね。タイミングがぴったりなら◎、音は合っているけど少しズレていたら△、違う音や無音なら✕。1小節が全部◎のときだけ正解数が+1されます。「シャッフル」ビートはリズムがはねる感じになります。リズムはずっと途切れずに続きます。</p>
 </div>
 
 <script>
 (function(){
   "use strict";
+
+  // ダブルタップでの画面ズームを防ぐ保険(CSSのtouch-action:manipulationで
+  // 効かない古いブラウザ向け)。ダブルタップ自体は連打として扱いたいので
+  // 標準のdblclickだけ抑止する。
+  document.addEventListener("dblclick", (e) => { e.preventDefault(); }, { passive:false });
 
   // ---------- music data ----------
   // 12種類のメジャースケール(単一の変化記号のみで表記できるスペルを採用)
@@ -752,7 +758,12 @@
       pianoWrap.classList.remove("active");
       pianoWrap.classList.add("locked");
       pianoBadge.className = "piano-badge locked";
-      pianoBadge.textContent = "👀 見本中(弾いてもOK)";
+      pianoBadge.textContent = "🔒 見本中(聴くだけ)";
+    } else if(mode === "count"){
+      pianoWrap.classList.remove("active");
+      pianoWrap.classList.add("locked");
+      pianoBadge.className = "piano-badge locked";
+      pianoBadge.textContent = "🥁 カウント中";
     } else {
       pianoWrap.classList.remove("active");
       pianoWrap.classList.add("locked");
