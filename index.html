@@ -127,6 +127,7 @@
   .goal-line{
     font-family:var(--font-mono); font-size:11px; color:var(--muted);
     text-align:center; letter-spacing:0.02em;
+    min-height:15px;   /* 開始前後で高さが変わらないよう場所を確保 */
   }
   .goal-line.met{color:var(--ok);}
   .banner{
@@ -158,13 +159,18 @@
     border-radius:12px;
     padding:14px 14px 14px;
   }
-  .beat-dots{display:flex; justify-content:center; gap:10px; margin-bottom:10px;}
-  .beat-dot{
-    width:10px;height:10px;border-radius:50%;
-    background:var(--line);
-    transition:width .08s ease, height .08s ease, background .08s ease, box-shadow .08s ease;
+  /* 拍のたびに要素の寸法が変わると、その下の鍵盤まで上下にずれる。
+     大きさは transform で見せて、レイアウト上の高さは固定する。 */
+  .beat-dots{
+    display:flex; justify-content:center; align-items:center;
+    gap:10px; height:16px; margin-bottom:10px;
   }
-  .beat-dot.on{width:14px; height:14px; background:var(--ink); box-shadow:0 0 8px var(--ink);}
+  .beat-dot{
+    width:10px; height:10px; border-radius:50%; flex:none;
+    background:var(--line);
+    transition:transform .08s ease, background .08s ease, box-shadow .08s ease;
+  }
+  .beat-dot.on{transform:scale(1.4); background:var(--ink); box-shadow:0 0 8px var(--ink);}
   .beat-dot.on.accent{background:var(--gold); box-shadow:0 0 8px var(--gold-glow);}
 
   .timeline{
@@ -180,13 +186,13 @@
   .tl-dot{
     position:absolute; left:50%; top:50%;
     width:12px; height:12px; border-radius:50%;
-    transform:translate(-50%,-50%);
+    transform:translate(-50%,-50%) scale(1);
     background:#5d4c3d;
-    transition:width .08s ease, height .08s ease, background .08s ease, box-shadow .08s ease;
+    transition:transform .08s ease, background .08s ease, box-shadow .08s ease;
   }
   .tl-cell.rest .tl-dot,
   .tl-cell.hidden-note .tl-dot{display:none;}
-  .tl-cell.lit .tl-dot{width:19px; height:19px; background:var(--gold); box-shadow:0 0 12px var(--gold-glow);}
+  .tl-cell.lit .tl-dot{transform:translate(-50%,-50%) scale(1.6); background:var(--gold); box-shadow:0 0 12px var(--gold-glow);}
   .tl-cell.guide .tl-dot{background:transparent; border:2px solid var(--clay); box-shadow:none;}
   .tl-mark{
     position:absolute; left:50%; top:50%;
@@ -1125,18 +1131,10 @@
     }
   }
   // 反応しない鍵盤を押したときの、静かな「今じゃないよ」表示
-  function nudgeKey(pc, symbol){
+  function nudgeKey(pc){
     const ref = keyEls[pc]; if(!ref) return;
     ref.el.classList.add("pressed");
     setTimeout(() => ref.el.classList.remove("pressed"), 110);
-    if(!symbol) return;
-    const pop = document.createElement("div");
-    pop.className = "judge-pop";
-    pop.style.color = "var(--muted)";
-    pop.style.fontSize = "18px";
-    pop.textContent = symbol;
-    ref.el.appendChild(pop);
-    setTimeout(() => { if(pop.parentNode) pop.parentNode.removeChild(pop); }, 640);
   }
 
   function judgeFlash(pc, tier, extraText){
@@ -1342,7 +1340,7 @@
 
     // 見本・イントロ中は鍵盤を鳴らさない。自分の音で見本が聞こえなくなるのを防ぐ。
     if(isRunning && role !== "answer"){
-      nudgeKey(pc, "👂");
+      nudgeKey(pc);
       return;
     }
     playPiano(pc, now, 1);
