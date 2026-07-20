@@ -680,8 +680,17 @@
     if(!audioCtx){
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = 0.8;
-      masterGain.connect(audioCtx.destination);
+      masterGain.gain.value = 1.35;   // 全体の底上げ(各音の比率は変えていない)
+      // 音が重なった瞬間だけ頭を抑えるリミッター。個々の音量比はそのままに、
+      // 全体を大きくしても割れないようにするためのもの。
+      const limiter = audioCtx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.knee.value = 6;
+      limiter.ratio.value = 12;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.15;
+      masterGain.connect(limiter);
+      limiter.connect(audioCtx.destination);
       const len = Math.floor(audioCtx.sampleRate * 0.4);
       noiseBuf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
       const d = noiseBuf.getChannelData(0);
