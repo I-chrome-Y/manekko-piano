@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>見本のまねっこピアノ | Echo Keys</title>
+<title>まねっこピアノ | Echo Keys</title>
 <style>
   :root{
     --bg-deep:#241712;
@@ -29,6 +29,14 @@
     --font-mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
   }
   *{box-sizing:border-box;}
+  /* ダブルタップ拡大を止める。manipulation はピンチ操作は残すので、
+     拡大したい人の手段は奪わない。 */
+  html, body, button, select, summary, label, a, .stat, .banner, .pdot,
+  .setup, .panel, .field-grid, .timeline, .beat-wrap, .result-card{
+    touch-action:manipulation;
+  }
+  html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body{ -webkit-touch-callout:none; }
   html,body{
     margin:0;padding:0;min-height:100%;
     background:radial-gradient(circle at 50% -10%, var(--bg-panel), var(--bg-deep) 70%);
@@ -116,6 +124,11 @@
   .pdot.s0{background:var(--bad);}
   .pdot.cur{box-shadow:0 0 0 2px rgba(239,231,216,0.5);}
 
+  .goal-line{
+    font-family:var(--font-mono); font-size:11px; color:var(--muted);
+    text-align:center; letter-spacing:0.02em;
+  }
+  .goal-line.met{color:var(--ok);}
   .banner{
     background:var(--bg-panel);
     border:1px solid var(--line);
@@ -374,6 +387,12 @@
   .result-grid div{background:var(--bg-panel-2); border-radius:9px; padding:9px 6px;}
   .result-grid .k{display:block; font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em; color:var(--muted);}
   .result-grid .v{display:block; font-family:var(--font-mono); font-size:17px; font-weight:700; color:var(--ink); margin-top:3px;}
+  .result-goal{
+    font-family:var(--font-mono); font-size:11.5px; color:var(--ink);
+    line-height:1.7; margin:2px 0 12px;
+  }
+  .result-goal b{color:var(--gold);}
+  .result-goal.met b{color:var(--ok);}
   .coach{
     background:rgba(201,162,39,0.12); border-radius:10px;
     padding:11px 13px; font-size:12.5px; line-height:1.75; text-align:left; color:var(--ink);
@@ -387,7 +406,7 @@
 <div class="stage">
   <div>
     <span class="kicker">Echo Keys — 聴いて・まねて・耳を鍛える</span>
-    <h1>見本のまねっこピアノ</h1>
+    <h1>まねっこピアノ</h1>
     <p class="sub">1小節の見本を聴いて、次の1小節でそっくり返す。リズムの正確さと「音の高さ」を同時に鍛えます。</p>
   </div>
 
@@ -402,6 +421,8 @@
     <span class="label" id="phraseCounter">0/8</span>
     <div class="phrase-dots" id="phraseDots"></div>
   </div>
+
+  <div class="goal-line" id="goalLine"></div>
 
   <div class="banner" id="banner">「はじめる」を押すと、キーの響きを聴かせてからスタートします</div>
 
@@ -496,7 +517,7 @@
           <option value="off">鳴らさない</option>
         </select>
       </div>
-      <p class="note">出だしの音はレベルに連動します(Lv1〜3は主音、Lv4〜6は主和音の音、Lv7以降は自由)。<br><b>ランダム</b>を選ぶと、セッションを始めるたびに抽選されます。同じ条件で固めるより、条件を変えながら練習したほうが応用が利く力になります(varied practice / interleaving)。<br>鍵盤の文字は<b>主音からの音程</b>で表示します。P1が主音、M3は長3度、m3は短3度。実際の高さ(C・D・E)ではなく<b>主音との距離</b>で覚えるので、キーが変わっても同じ知識が使えます。鍵盤の下に<b>P1 = いまの主音</b>を常時表示しています。<br>ガイド表示は「見本のヒント」の設定に連動して自動で増減します。伴奏(ベース+コード)は調のよりどころなので、レベルが上がっても消えません。</p>
+      <p class="note">出だしの音はレベルに連動します(Lv1〜3は主音、Lv4〜6は主和音、Lv7以降は自由)。鍵盤の文字は主音からの音程で、P1が主音・M3が長3度・m3が短3度です。</p>
     </div>
   </details>
 
@@ -504,16 +525,13 @@
     <summary>遊び方</summary>
     <div class="panel-body">
       <p class="note">
-        1. 最初にキーの和音が鳴ります。ここで耳を「調」に合わせます。<br>
-        2. 見本の1小節を聴く(設定によっては鍵盤が光ります)。<br>
-        3. 次の1小節が自分の番。同じ音を、同じタイミングで返します。<br><br>
-        判定は <b style="color:var(--ok)">◎</b> ぴったり / <b style="color:var(--near)">△</b> 音は合っているがタイミングがズレた / <b style="color:var(--bad)">✕</b> ちがう音・弾き忘れ。<br>
-        音を外したときは <b style="color:var(--bad)">↑ ↓</b> が出ます。正解が今の音より高いか低いかのヒントです。<br><br>
-        うまくいかなかったフレーズは、少し間をあけて<b>もう一度出題</b>されます(リトライ表示)。思い出す作業そのものが記憶を強くするためです。<br>
-        音の役割を4つに分けてあります。<b>ピアノの音=見本とあなたの演奏</b>、<b>打楽器のカッ=拍のクリック</b>、<b>高いベル=ごほうび</b>、<b>ベースとコード=キーの伴奏</b>。伴奏はベースが2オクターブ下、コードが1オクターブ下なので、見本のピアノとは音域も音色も重なりません。1拍目に置くのは短いベースだけで、<b>ピアノの音域は見本のために空けてあります</b>。<br>
-        <b>見本の最中は鍵盤が鳴りません。</b>自分の音で見本が聞こえなくなるのを防ぐためです。ゲームを止めているあいだは自由に弾けます。<br>
-        スケールに入っていない鍵盤(うすい鍵盤)は出題されないので、押しても反応しません。押し間違いで減点されることはありません。<br>
-        パソコンなら <b>A W S E D F T G Y H U J</b> でも弾けます。
+        見本の1小節を聴き、次の1小節で同じように返します。<br>
+        <b style="color:var(--ok)">◎</b> ぴったり / <b style="color:var(--near)">△</b> 音は合ったがズレた / <b style="color:var(--bad)">✕</b> ちがう音・弾き忘れ。
+        音を外すと <b style="color:var(--bad)">↑↓</b> で正解の方向が出ます。<br>
+        つまずいたフレーズは、少し間をあけて<b>もう一度出題</b>されます。<br><br>
+        見本の最中は鍵盤が鳴りません(自分の音で見本が消えないため)。止めているあいだは自由に弾けます。
+        うすい鍵盤は出題されないので、押しても減点されません。
+        パソコンは <b>A W S E D F T G Y H U J</b>。
       </p>
     </div>
   </details>
@@ -522,16 +540,14 @@
     <summary>この設計の根拠</summary>
     <div class="panel-body">
       <p class="note">
-        <b>85%前後をねらう自動調整</b> — 課題の難度と技能が釣り合うときに集中と上達が最も進むという flow 理論、および学習が最適化される正答率の目安(おおむね85%)に基づいています。<br><br>
-        <b>見本のヒントをだんだん減らす</b> — 手がかりが強すぎると、それに依存して肝心の能力が育たない(guidance hypothesis / Salmoni・Schmidt・Walter 1984)。上達に応じて鍵盤の光を消し、最後は耳だけにします。<br><br>
-        <b>失敗フレーズの間隔をあけた再出題</b> — 間隔をあけた検索練習(retrieval practice / spacing)は、繰り返し聴き直すより定着が強いことが繰り返し示されています(Bjork & Bjork の「望ましい困難」)。<br><br>
-        <b>止まらない伴奏で調を支える</b> — 相対音感は「調の中でその音がどんな役割か」で覚えるほうが定着するので、基準になる和音を止めずに鳴らします。ただし持続音を鳴らしっぱなしにすると耳が慣れて機械音に聞こえるため、<b>ベース(1・3拍)とコード(2・4拍)が動き続けるループ</b>にしました。トニックのルートと5度を繰り返すだけの単純な形なので、調の中心は一度もぶれません。音楽ゲームのバッキングと同じ考え方で、拍もつかみやすくなります。鍵盤に主音からの音程(P1・M3・P5…)を振っているのも同じ狙いです。<br><br>
-        <b>短いセッションで区切る</b> — 長時間まとめてより、短い練習を日をあけて繰り返すほうが伸びます。<br><br>
-        <b>スコアより自分の伸び</b> — 自律性(キーやモードを自分で選べる)・有能感(手応えのある課題と即時のフィードバック)が、やる気を支えるという自己決定理論(Ryan, Rigby & Przybylski 2006)に沿って、報酬は運任せではなく上達に連動させています。<br><br>
-        <b>出だしの音を固定しない</b> — 毎回主音から始まると1音目を聴かなくても当てられてしまい、「その音が調の何番目か」を判断する力が育ちません。Lv4以降は主和音の構成音から、Lv7以降はどの音からでも始まります。調の基準は伴奏がずっと保っているので、これは<b>望ましい困難</b>として働きます。<br><br>
-        <b>苦手な音度を狙って出す</b> — 音度ごとの取りこぼし率を記録し、明らかに落としている音を意図的に混ぜます。結果画面でもその音を音程名(P1・M3…)でお知らせします。できる所を繰り返しても、できない所は伸びないためです。<br><br>
-        <b>比べる相手は自分</b> — 順位表ではなく<b>自己ベスト</b>だけを出します。他者比較より自己基準(熟達目標)のほうが、内発的な動機と粘り強さが続きます。また、ヒントを削るほど得点が伸びる仕組みにして、<b>効果の高い練習ほど得になる</b>ようにしました。<br><br>
-        <b>設定は少なく、既定値で正しく</b> — 自己決定理論の「自律性」は<b>選択肢の数</b>ではなく<b>意味のある選択</b>のことです。スイッチが増えるほど本題と関係のない判断(外在的認知負荷)が増えるため、ふだん決めるのは「むずかしさ」と「長さ」だけにし、残りは既定値と自動調整に寄せました。
+        <b>正解率85%前後を保つ</b> — 難度と技能が釣り合うときに最も集中と上達が進む(フロー理論／最適学習率)。<br>
+        <b>毎回の目標を具体的に、少しだけ難しく</b> — 「がんばる」より効果が高い(Locke & Latham 目標設定理論)。<br>
+        <b>ヒントは上達に応じて外す</b> — 手がかりが強いと依存して能力が育たない(guidance hypothesis / Salmoni et al. 1984)。<br>
+        <b>失敗フレーズは間隔をあけて再出題</b>、<b>出だしの音を固定しない</b>、<b>苦手な音程を狙って出す</b> — 思い出す作業と適度な困難が定着を強める(Bjork「望ましい困難」)。<br>
+        <b>伴奏で調を保つ</b> — 相対音感は「調の中での役割」で覚えるほうが定着する。鍵盤の音程表示も同じ狙い。<br>
+        <b>比べる相手は自分だけ</b> — 順位表を置かず自己ベストのみ。他者比較より熟達目標のほうが動機が続く。<br>
+        <b>報酬は上達に連動</b> — 運任せにせず、ヒントを削るほど得点が伸びる(自己決定理論 / Ryan, Rigby &amp; Przybylski 2006)。<br>
+        <b>短く区切って毎日</b> — まとめて長時間より、分散した短い練習のほうが伸びる。
       </p>
     </div>
   </details>
@@ -549,6 +565,7 @@
       <div><span class="k">最高コンボ</span><span class="v" id="resCombo">0</span></div>
       <div><span class="k">到達レベル</span><span class="v" id="resLv">1</span></div>
     </div>
+    <div class="result-goal" id="resGoal"></div>
     <div class="coach" id="resCoach"></div>
     <div class="result-btns">
       <button class="btn" id="againBtn">もう一回</button>
@@ -814,6 +831,7 @@
   const pianoEl = $("piano"), pianoWrap = $("pianoWrap"), pianoBadge = $("pianoBadge");
   const startBtn = $("startBtn"), bpmSlider = $("bpmSlider"), bpmVal = $("bpmVal");
   const keyCaption = $("keyCaption");
+  const goalLine = $("goalLine");
   const overlay = $("overlay");
 
   (function(){
@@ -867,6 +885,9 @@
   let degStats = {};   // 音度ごとの取りこぼし率。弱点の特定と出題に使う
   let sessionKeyRootPc = 0;
   let bestScoreEver = 0, bestAccEver = 0;   // 他人とではなく、自分の過去と比べる
+  // 目標設定理論: 「がんばる」より、具体的で少しだけ難しい目標のほうが伸びる。
+  // 前回の実績+1 を次の目標にして、常に手が届きそうな一歩先を置く。
+  let goalTarget = 0, goalHit = 0, prevStarCount = -1;
 
   const LOOKAHEAD_MS = 25;
   const SCHEDULE_AHEAD_S = 0.12;
@@ -910,12 +931,18 @@
   function slotDurationAt(i, offsets, duration){
     return i < SLOTS - 1 ? (offsets[i + 1] - offsets[i]) : (duration - offsets[i]);
   }
-  // 判定窓はテンポに合わせて伸縮させる(速い曲ほど厳しく)
+  // 判定窓が依存するのは「テンポ」だけで、レベルには一切連動させない。
+  // レベルで窓を狭めると、同じ演奏の評価が後から下がることになり、
+  // 上達したのか基準が動いたのかを本人が区別できなくなるため。
   // 遅れ側の判定窓は小節線の手前で閉じる。次の小節はもう見本なので、
   // そこまで待つと結果の音が見本の1拍目に重なってしまう。
   function lateWindowFor(slotOffset, dur, w){
     return Math.max(w.great, Math.min(w.near, dur - 0.12 - slotOffset));
   }
+  // テンポに対する比率(28%)で決め、上限100ms・下限55msで挟む。
+  // 比率にする理由は2つ。人のタップ誤差は音符の間隔にほぼ比例して大きくなること
+  // (スカラー時間特性)と、窓が音符間隔の半分に近づくと隣の音と判定が重なって
+  // 曖昧になること。28%なら隣とのあいだに必ず余裕が残る。
   function windows(){
     const eighth = (60 / bpm) / 2;
     return {
@@ -1222,6 +1249,20 @@
       : "--";
     lvVal.textContent = "Lv" + (level + 1);
   }
+  function computeGoal(){
+    const n = sessionLen || 8;
+    const base = (prevStarCount >= 0) ? prevStarCount + 1 : Math.ceil(n * 0.6);
+    return Math.max(Math.ceil(n * 0.4), Math.min(n, base));
+  }
+  function refreshGoalLine(){
+    if(!goalTarget){ goalLine.textContent = ""; goalLine.className = "goal-line"; return; }
+    const met = goalHit >= goalTarget;
+    goalLine.className = "goal-line" + (met ? " met" : "");
+    goalLine.textContent = met
+      ? "🎯 目標達成 ★★以上 " + goalHit + "回 — ここからは上乗せ"
+      : "🎯 このセッションの目標 ★★以上を " + goalHit + " / " + goalTarget + " 回";
+  }
+
   function buildPhraseDots(){
     phraseDots.innerHTML = "";
     const n = sessionLen || 8;
@@ -1380,6 +1421,8 @@
     const gained = Math.round(ratio * 100 * (1 + Math.min(combo, 10) * 0.1) * revealBonus());
     score += gained;
 
+    if(stars >= 2){ goalHit += 1; }
+    refreshGoalLine();
     markPhraseDot(phraseIdx, stars);
 
     if(stars >= 2){
@@ -1602,6 +1645,7 @@
     errStats = { timing:0, pitch:0, miss:0, extra:0, great:0 };
     degStats = {};
     retryQueue = [];
+    goalTarget = computeGoal(); goalHit = 0; refreshGoalLine();
     curPattern = new Array(SLOTS).fill(null); curNoteSlots = [];
     scheduledMeasures = [];
     curMeasureIndex = 0;
@@ -1653,6 +1697,16 @@
     $("resAcc").textContent = Math.round(acc * 100) + "%";
     $("resCombo").textContent = String(bestCombo);
     $("resLv").textContent = "Lv" + (level + 1);
+
+    const goalMet = goalHit >= goalTarget;
+    prevStarCount = goalHit;
+    const nextGoal = computeGoal();
+    const resGoal = $("resGoal");
+    resGoal.className = "result-goal" + (goalMet ? " met" : "");
+    resGoal.innerHTML = (goalMet
+        ? "目標達成 <b>★★以上 " + goalHit + "回</b>(目標 " + goalTarget + "回)"
+        : "目標 " + goalTarget + "回 に対して <b>" + goalHit + "回</b>。あと " + (goalTarget - goalHit) + " 回でした")
+      + "<br>次の目標 <b>★★以上を " + nextGoal + "回</b>";
 
     const newScore = score > bestScoreEver, newAcc = acc > bestAccEver;
     const bestEl = $("resBest");
@@ -1755,6 +1809,18 @@
   });
   window.addEventListener("pagehide", hardKillAudio);
   window.addEventListener("beforeunload", hardKillAudio);
+
+  // iOS の古い版は touch-action を無視することがあるので、
+  // 350ms 以内の2度目のタップだけ既定動作(拡大)を止める保険を入れる。
+  (function(){
+    let lastTouchEnd = 0;
+    document.addEventListener("touchend", function(e){
+      const now = Date.now();
+      if(now - lastTouchEnd <= 350) e.preventDefault();
+      lastTouchEnd = now;
+    }, { passive: false });
+    document.addEventListener("dblclick", function(e){ e.preventDefault(); }, { passive: false });
+  })();
 
   buildPiano();
   buildPhraseDots();
