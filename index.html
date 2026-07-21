@@ -52,6 +52,7 @@
     max-width:640px;
     margin:0 auto;
     padding:22px 16px 48px;
+    /* 狭い画面では余白を削って鍵盤の実寸を稼ぐ(下の media query) */
     display:flex;
     flex-direction:column;
     gap:14px;
@@ -89,6 +90,12 @@
     outline:2px solid var(--gold); outline-offset:2px;
   }
   .pill.active{background:var(--gold); color:var(--bg-deep); border-color:var(--gold);}
+  .pill.locked, select.locked, input.locked{
+    opacity:0.42; pointer-events:none; cursor:not-allowed;
+  }
+  .pill.locked.active{opacity:0.6;}
+  .stage.playing details.panel > summary{opacity:0.6; pointer-events:none;}
+  .stage.playing details.panel[open] > summary{opacity:1; pointer-events:auto;}
   select{
     background:var(--bg-panel); color:var(--ink);
     border:1px solid var(--line); border-radius:8px;
@@ -98,7 +105,7 @@
   /* ---- HUD ---- */
   .hud{
     display:grid;
-    grid-template-columns:repeat(4, 1fr);
+    grid-template-columns:repeat(3, 1fr);
     gap:8px;
   }
   .stat{
@@ -110,7 +117,6 @@
   }
   .stat-label{display:block; font-family:var(--font-mono); font-size:9px; letter-spacing:0.12em; color:var(--muted); text-transform:uppercase;}
   .stat-value{display:block; font-family:var(--font-mono); font-weight:700; font-size:17px; color:var(--gold); margin-top:3px;}
-  .stat-value.hot{color:var(--ok); text-shadow:0 0 10px var(--ok-glow);}
 
   .progress-row{display:flex; align-items:center; gap:8px;}
   .phrase-dots{display:flex; gap:4px; flex:1; flex-wrap:wrap;}
@@ -127,18 +133,21 @@
   .goal-line{
     font-family:var(--font-mono); font-size:11px; color:var(--muted);
     text-align:center; letter-spacing:0.02em;
-    min-height:15px;   /* 開始前後で高さが変わらないよう場所を確保 */
+    height:16px;                 /* 開始前後で高さが変わらないよう場所を確保 */
+    overflow:hidden; white-space:nowrap;
   }
   .goal-line.met{color:var(--ok);}
   .banner{
     background:var(--bg-panel);
     border:1px solid var(--line);
     border-radius:12px;
-    padding:13px 16px;
+    padding:8px 14px;
     text-align:center;
     font-weight:600;
-    font-size:14px;
-    min-height:48px;
+    font-size:13.5px;
+    line-height:1.35;
+    height:54px;           /* 文言が変わっても高さを動かさない */
+    overflow:hidden;
     display:flex; align-items:center; justify-content:center; gap:6px;
     transition:background .2s ease, color .2s ease;
   }
@@ -216,7 +225,7 @@
     background:var(--bg-panel);
     border:1px solid var(--line);
     border-radius:12px;
-    padding:16px 12px 6px;
+    padding:16px 10px 6px;
     margin-top:14px;
     transition:filter .15s ease, box-shadow .2s ease, border-color .2s ease;
   }
@@ -253,6 +262,11 @@
     50%{ box-shadow:0 0 0 7px rgba(224,72,59,0); }
   }
   .piano{position:relative; display:flex; height:150px; user-select:none; gap:2px; touch-action:none;}
+  /* 黒鍵は見た目のままに、タップできる範囲だけ左右と下に広げる。
+     指の当たりどころが少しずれても拾えるようにするため。 */
+  .bkey::after{
+    content:""; position:absolute; left:-5px; right:-5px; top:0; bottom:-10px;
+  }
   .wkey{
     flex:1; position:relative;
     background:var(--ivory);
@@ -295,6 +309,8 @@
   }
   .bkey .name{font-size:10px; font-weight:700;}
 
+  .key-caption b{color:var(--gold); font-weight:700;}
+  .key-caption .sep{opacity:0.4; margin:0 7px;}
   .key-caption{
     text-align:center; margin:8px 0 2px;
     font-family:var(--font-mono); font-size:10.5px; color:var(--muted);
@@ -372,40 +388,80 @@
   /* ---- results overlay ---- */
   .overlay{
     position:fixed; inset:0; z-index:40;
-    background:rgba(20,12,9,0.86);
-    display:none; align-items:center; justify-content:center; padding:20px;
+    background:rgba(16,9,7,0.92);
+    display:none; align-items:center; justify-content:center; padding:16px;
   }
   .overlay.show{display:flex;}
   .result-card{
-    width:100%; max-width:380px;
+    width:100%; max-width:400px;
+    max-height:92vh; overflow-y:auto;
     background:var(--bg-panel);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:22px 20px;
+    border:1px solid rgba(201,162,39,0.35);
+    border-radius:18px;
+    padding:24px 20px 20px;
     text-align:center;
+    box-shadow:0 18px 50px rgba(0,0,0,0.55);
   }
-  .result-card h2{font-family:var(--font-serif); font-size:22px; margin:0 0 2px;}
-  .result-rank{font-family:var(--font-serif); font-size:44px; font-weight:700; color:var(--gold); margin:6px 0 2px; letter-spacing:0.04em;}
-  .result-stars{font-size:20px; color:var(--gold); letter-spacing:0.14em; margin-bottom:8px;}
-  .result-best{font-size:12px; color:var(--muted); min-height:18px; margin-bottom:6px;}
+  .result-kicker{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.3em;
+    color:var(--muted); text-transform:uppercase;
+  }
+  .result-rank{
+    font-family:var(--font-serif); font-size:46px; font-weight:700;
+    color:var(--gold); margin:8px 0 0; letter-spacing:0.05em; line-height:1.1;
+    text-shadow:0 0 24px rgba(201,162,39,0.35);
+  }
+  .result-stars{font-size:26px; color:var(--gold); letter-spacing:0.2em; margin:4px 0 18px;}
+
+  .result-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin:0 0 16px;}
+  .result-grid div{
+    background:var(--bg-panel-2); border:1px solid var(--line);
+    border-radius:12px; padding:12px 8px;
+  }
+  .result-grid .k{
+    display:block; font-family:var(--font-mono); font-size:10px;
+    letter-spacing:0.12em; color:var(--muted);
+  }
+  .result-grid .v{
+    display:block; font-family:var(--font-mono); font-size:24px; font-weight:700;
+    color:var(--ink); margin-top:5px; line-height:1.1;
+  }
+
+  .result-best{
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px;
+    font-size:12px; color:var(--muted); margin-bottom:12px; min-height:22px;
+  }
+  .result-best .bl{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
+  }
+  .result-best .bv{
+    background:var(--bg-panel-2); border-radius:999px; padding:4px 10px;
+    font-family:var(--font-mono); font-size:11px; color:var(--ink);
+  }
   .result-best.new{color:var(--ok); font-weight:700;}
-  .result-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0;}
-  .result-grid div{background:var(--bg-panel-2); border-radius:9px; padding:9px 6px;}
-  .result-grid .k{display:block; font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em; color:var(--muted);}
-  .result-grid .v{display:block; font-family:var(--font-mono); font-size:17px; font-weight:700; color:var(--ink); margin-top:3px;}
-  .result-goal{
-    font-family:var(--font-mono); font-size:11.5px; color:var(--ink);
-    line-height:1.7; margin:2px 0 12px;
+  .result-best.new .bv{
+    background:rgba(95,190,122,0.18); color:var(--ok);
   }
-  .result-goal b{color:var(--gold);}
-  .result-goal.met b{color:var(--ok);}
+
   .coach{
-    background:rgba(201,162,39,0.12); border-radius:10px;
-    padding:11px 13px; font-size:12.5px; line-height:1.75; text-align:left; color:var(--ink);
-    margin-bottom:14px;
+    background:rgba(201,162,39,0.10);
+    border:1px solid rgba(201,162,39,0.22);
+    border-radius:12px;
+    padding:13px 15px; font-size:13px; line-height:1.85;
+    text-align:left; color:var(--ink);
+    margin-bottom:18px;
   }
   .coach b{color:var(--gold);}
-  .result-btns{display:flex; gap:8px; justify-content:center;}
+  .result-btns{display:flex; gap:10px;}
+  .result-btns .btn{flex:1; padding:14px 10px; font-size:15px;}
+
+  /* ---- 狭い画面(スマホ)では鍵盤の実寸を優先する ---- */
+  @media (max-width: 480px){
+    .stage{ padding:16px 8px 40px; }
+    .piano-wrap{ padding:14px 6px 6px; }
+    .piano{ gap:1px; height:158px; }
+    .wkey{ border-radius:0 0 6px 6px; }
+  }
 </style>
 </head>
 <body>
@@ -418,7 +474,6 @@
 
   <div class="hud">
     <div class="stat"><span class="stat-label">スコア</span><span class="stat-value" id="scoreVal">0</span></div>
-    <div class="stat"><span class="stat-label">コンボ</span><span class="stat-value" id="comboVal">0</span></div>
     <div class="stat"><span class="stat-label">正確さ</span><span class="stat-value" id="accVal">--</span></div>
     <div class="stat"><span class="stat-label">レベル</span><span class="stat-value" id="lvVal">2</span></div>
   </div>
@@ -430,7 +485,7 @@
 
   <div class="goal-line" id="goalLine"></div>
 
-  <div class="banner" id="banner">「はじめる」を押すと、キーの響きを聴かせてからスタートします</div>
+  <div class="banner" id="banner">「はじめる」でスタート</div>
 
   <div class="beat-wrap">
     <div class="beat-dots" id="beatDots">
@@ -464,16 +519,17 @@
       <span class="label">むずかしさ</span>
       <div class="pill-group" id="diffGroup">
         <button class="pill active" data-diff="adaptive">おまかせ</button>
-        <button class="pill" data-diff="1">やさしい</button>
-        <button class="pill" data-diff="4">ふつう</button>
-        <button class="pill" data-diff="7">むずかしい</button>
+        <button class="pill" data-diff="easy">やさしい</button>
+        <button class="pill" data-diff="normal">ふつう</button>
+        <button class="pill" data-diff="hard">むずかしい</button>
       </div>
     </div>
     <div class="mode-row">
       <span class="label">長さ</span>
       <div class="pill-group" id="lengthGroup">
-        <button class="pill active" data-len="8">8フレーズ</button>
-        <button class="pill" data-len="16">16フレーズ</button>
+        <button class="pill" data-len="8">8フレーズ</button>
+        <button class="pill active" data-len="16">16フレーズ</button>
+        <button class="pill" data-len="32">32フレーズ</button>
         <button class="pill" data-len="0">エンドレス</button>
       </div>
     </div>
@@ -489,10 +545,10 @@
 
         <label class="label" for="scaleTypeSelect">スケール</label>
         <select id="scaleTypeSelect">
-          <option value="random">ランダム</option>
+          <option value="random" selected>ランダム</option>
           <option value="major">メジャー</option>
           <option value="minor">マイナー</option>
-          <option value="majorPenta" selected>メジャーペンタ</option>
+          <option value="majorPenta">メジャーペンタ</option>
           <option value="minorPenta">マイナーペンタ</option>
         </select>
 
@@ -512,8 +568,8 @@
 
         <label class="label" for="beatSelect">ビート</label>
         <select id="beatSelect">
-          <option value="random">ランダム</option>
-          <option value="straight" selected>ストレート</option>
+          <option value="random" selected>ランダム</option>
+          <option value="straight">ストレート</option>
           <option value="shuffle">シャッフル</option>
         </select>
 
@@ -523,7 +579,7 @@
           <option value="off">鳴らさない</option>
         </select>
       </div>
-      <p class="note">出だしの音はレベルに連動します(Lv1〜3は主音、Lv4〜6は主和音、Lv7以降は自由)。鍵盤の文字は主音からの音程で、P1が主音・M3が長3度・m3が短3度です。</p>
+      <p class="note">レベルは20段。Lv1〜10でスケール内の音域と音数、Lv11〜14で跳躍の広さ、Lv15〜20でスケール外の半音が加わります。鍵盤の文字は主音からの音程で、P1が主音・M3が長3度・m3が短3度・TTが三全音です。</p>
     </div>
   </details>
 
@@ -534,7 +590,7 @@
         見本の1小節を聴き、次の1小節で同じように返します。<br>
         <b style="color:var(--ok)">◎</b> ぴったり / <b style="color:var(--near)">△</b> 音は合ったがズレた / <b style="color:var(--bad)">✕</b> ちがう音・弾き忘れ。
         音を外すと <b style="color:var(--bad)">↑↓</b> で正解の方向が出ます。<br>
-        つまずいたフレーズは、少し間をあけて<b>もう一度出題</b>されます。<br><br>
+
         見本の最中は鍵盤が鳴りません(自分の音で見本が消えないため)。止めているあいだは自由に弾けます。
         うすい鍵盤は出題されないので、押しても減点されません。
         パソコンは <b>A W S E D F T G Y H U J</b>。
@@ -549,7 +605,8 @@
         <b>正解率85%前後を保つ</b> — 難度と技能が釣り合うときに最も集中と上達が進む(フロー理論／最適学習率)。<br>
         <b>毎回の目標を具体的に、少しだけ難しく</b> — 「がんばる」より効果が高い(Locke & Latham 目標設定理論)。<br>
         <b>ヒントは上達に応じて外す</b> — 手がかりが強いと依存して能力が育たない(guidance hypothesis / Salmoni et al. 1984)。<br>
-        <b>失敗フレーズは間隔をあけて再出題</b>、<b>出だしの音を固定しない</b>、<b>苦手な音程を狙って出す</b> — 思い出す作業と適度な困難が定着を強める(Bjork「望ましい困難」)。<br>
+        <b>出だしの音を固定しない</b>、<b>音数を毎回変える</b>、<b>苦手な音程を狙って出す</b> — 条件を変えながらの練習と適度な困難が、長期の定着と応用を強める(Bjork「望ましい困難」)。<br>
+        <b>天井を作らない20段</b> — 上達し続ける限り課題も上がり続けるほうが集中が保たれる(フロー理論)。刻みを細かくして、達成が近いほど加速する目標勾配効果を何度も起こす。<br>
         <b>伴奏で調を保つ</b> — 相対音感は「調の中での役割」で覚えるほうが定着する。鍵盤の音程表示も同じ狙い。<br>
         <b>比べる相手は自分だけ</b> — 順位表を置かず自己ベストのみ。他者比較より熟達目標のほうが動機が続く。<br>
         <b>報酬は上達に連動</b> — 運任せにせず、ヒントを削るほど得点が伸びる(自己決定理論 / Ryan, Rigby &amp; Przybylski 2006)。<br>
@@ -561,21 +618,21 @@
 
 <div class="overlay" id="overlay">
   <div class="result-card">
-    <h2>セッション終了</h2>
+    <div class="result-kicker">セッション終了</div>
     <div class="result-rank" id="resRank">GOOD</div>
     <div class="result-stars" id="resStars">★★☆</div>
-    <div class="result-best" id="resBest"></div>
+
     <div class="result-grid">
       <div><span class="k">スコア</span><span class="v" id="resScore">0</span></div>
       <div><span class="k">正確さ</span><span class="v" id="resAcc">0%</span></div>
-      <div><span class="k">最高コンボ</span><span class="v" id="resCombo">0</span></div>
       <div><span class="k">到達レベル</span><span class="v" id="resLv">1</span></div>
     </div>
-    <div class="result-goal" id="resGoal"></div>
+
+    <div class="result-best" id="resBest"></div>
     <div class="coach" id="resCoach"></div>
+
     <div class="result-btns">
-      <button class="btn" id="againBtn">もう一回</button>
-      <button class="btn ghost" id="closeBtn">とじる</button>
+      <button class="btn" id="closeBtn">閉じる</button>
     </div>
   </div>
 </div>
@@ -625,6 +682,8 @@
     majorPenta: [0,2,4,7,9],
     minorPenta: [0,3,5,7,10],
   };
+  // 主音からの音程名(12半音ぶん)。スケール外の音にも名前が付く。
+  const INTERVAL_12 = ["P1","m2","M2","m3","M3","P4","TT","P5","m6","M6","m7","M7"];
   // 主音から数えた音程。長短の区別まで出るので、階名より誤解の余地がない
   const INTERVALS = {
     major:      ["P1","M2","M3","P4","P5","M6","M7"],
@@ -637,19 +696,46 @@
      難易度ラダー
      span = 使う音の数(トニックから順に)、density = 音の数
      ========================================================= */
-  // start: 出だしの音。"tonic"=必ず主音 / "chord"=主和音の構成音 / "any"=どの音からでも
+  // 難易度は3軸で上げる: 音域(span) / 音数の範囲(dMin, dMax) / 出だし(start)。
+  // 音数は「毎回変動」にする。同じ密度が続くとフレーズが定型化して、
+  // 「その形を待ち構える」学習になってしまう(適応が起きにくくなる)。
+  // 揺らぎがあるほうが、覚える対象を毎回作り直す作業=検索練習が起きる。
+  // Lv1〜2は1〜2音の"聴音"寄り。旋律というより「その音は主音? それとも1音上?」の判別。
+  // Lv3以降で本格的な旋律に入り、ワーキングメモリの4項目付近を境に負荷を上げる。
+  // 難易度は5軸で上げる: 音域(span) / 音数(dMin,dMax) / 出だし(start)
+  //                      / 跳躍の広さ(leap) / スケール外の音(chroma)。
+  // 1段につき動かすのは原則1軸だけ。何が難しくなったかが分かるようにする。
+  // Lv1-10  ダイアトニックの中で、音域と音数を広げる
+  // Lv11-14 跳躍を広げる(順次進行だけでは当てられなくなる)
+  // Lv15-20 スケール外の音(半音)が混ざる
   const LADDER = [
-    { span:1, density:2, sync:false, start:"tonic" },  // Lv1 リズムだけ
-    { span:2, density:2, sync:false, start:"tonic" },  // Lv2
-    { span:2, density:3, sync:false, start:"tonic" },  // Lv3
-    { span:3, density:3, sync:false, start:"chord" },  // Lv4
-    { span:3, density:4, sync:false, start:"chord" },  // Lv5
-    { span:4, density:4, sync:false, start:"chord" },  // Lv6
-    { span:5, density:4, sync:true,  start:"any"   },  // Lv7
-    { span:5, density:5, sync:true,  start:"any"   },  // Lv8
-    { span:7, density:5, sync:true,  start:"any"   },  // Lv9
-    { span:7, density:6, sync:true,  start:"any"   },  // Lv10
+    { span:1, dMin:1, dMax:2, sync:false, start:"tonic", leap:"narrow", chroma:0    },
+    { span:2, dMin:2, dMax:3, sync:false, start:"tonic", leap:"narrow", chroma:0    },
+    { span:3, dMin:2, dMax:3, sync:false, start:"tonic", leap:"narrow", chroma:0    },
+    { span:3, dMin:3, dMax:4, sync:false, start:"chord", leap:"narrow", chroma:0    },
+    { span:4, dMin:3, dMax:4, sync:false, start:"chord", leap:"narrow", chroma:0    },
+    { span:5, dMin:3, dMax:5, sync:false, start:"chord", leap:"narrow", chroma:0    },
+    { span:5, dMin:4, dMax:5, sync:true,  start:"any",   leap:"narrow", chroma:0    },
+    { span:7, dMin:4, dMax:5, sync:true,  start:"any",   leap:"narrow", chroma:0    },
+    { span:7, dMin:5, dMax:6, sync:true,  start:"any",   leap:"narrow", chroma:0    },
+    { span:7, dMin:5, dMax:7, sync:true,  start:"any",   leap:"narrow", chroma:0    },
+    { span:7, dMin:5, dMax:7, sync:true,  start:"any",   leap:"medium", chroma:0    },
+    { span:7, dMin:6, dMax:7, sync:true,  start:"any",   leap:"medium", chroma:0    },
+    { span:7, dMin:6, dMax:8, sync:true,  start:"any",   leap:"medium", chroma:0    },
+    { span:7, dMin:6, dMax:8, sync:true,  start:"any",   leap:"wide",   chroma:0    },
+    { span:7, dMin:5, dMax:7, sync:true,  start:"any",   leap:"medium", chroma:0.12 },
+    { span:7, dMin:6, dMax:8, sync:true,  start:"any",   leap:"medium", chroma:0.12 },
+    { span:7, dMin:6, dMax:8, sync:true,  start:"any",   leap:"wide",   chroma:0.12 },
+    { span:7, dMin:6, dMax:8, sync:true,  start:"any",   leap:"wide",   chroma:0.22 },
+    { span:7, dMin:7, dMax:8, sync:true,  start:"any",   leap:"wide",   chroma:0.22 },
+    { span:7, dMin:8, dMax:8, sync:true,  start:"any",   leap:"wide",   chroma:0.32 },
   ];
+  // 跳躍の分布。narrow は順次進行中心、wide は6度・7度も飛ぶ。
+  const LEAP_TABLE = {
+    narrow: [[0,0.20],[1,0.46],[2,0.22],[3,0.12]],
+    medium: [[0,0.12],[1,0.30],[2,0.24],[3,0.20],[4,0.14]],
+    wide:   [[0,0.08],[1,0.20],[2,0.18],[3,0.18],[4,0.16],[5,0.12],[6,0.08]],
+  };
   // 主和音の構成音が、各スケールの何番目の音にあたるか
   const CHORD_DEGREES = {
     major:      [0,2,4],
@@ -657,19 +743,24 @@
     majorPenta: [0,2,3],
     minorPenta: [0,1,3],
   };
-  // 表拍から始まる素直なリズム
+  // 表拍を軸にした素直なリズム。1拍目を必ず含めて拍の起点を明確にする。
   const RHYTHM_PLAIN = {
-    2: [[0,4],[0,2],[0,6],[0,3],[2,4],[4,6]],
-    3: [[0,2,4],[0,4,6],[0,2,6],[0,3,6],[0,2,5],[0,4,5],[0,2,3]],
-    4: [[0,2,4,6],[0,1,4,6],[0,2,4,5],[0,3,4,6],[0,2,3,6],[0,2,3,4]],
-    5: [[0,1,2,4,5],[0,1,2,4,6],[0,2,3,4,6],[0,2,4,5,6],[0,1,4,5,6]],
-    6: [[0,1,2,4,5,6],[0,2,3,4,5,6],[0,1,3,4,5,6],[0,1,2,3,4,6]],
+    1: [[0],[4]],
+    2: [[0,4],[0,2],[0,6],[2,4],[4,6]],
+    3: [[0,2,4],[0,4,6],[0,2,6],[0,3,6],[0,2,5],[0,4,5]],
+    4: [[0,2,4,6],[0,1,4,6],[0,2,4,5],[0,3,4,6],[0,2,3,6],[0,2,4,7]],
+    5: [[0,2,4,6,7],[0,1,2,4,6],[0,2,3,4,6],[0,2,4,5,6],[0,1,4,5,6]],
+    6: [[0,1,2,4,5,6],[0,2,3,4,6,7],[0,1,2,4,6,7],[0,2,4,5,6,7]],
+    7: [[0,1,2,3,4,5,6],[0,1,2,4,5,6,7],[0,2,3,4,5,6,7]],
+    8: [[0,1,2,3,4,5,6,7]],
   };
   // 裏拍・シンコペーションを含むリズム
   const RHYTHM_SYNC = {
-    4: [[1,2,4,6],[0,3,5,6],[0,2,5,6],[1,3,4,6],[0,1,3,6]],
-    5: [[0,1,3,4,6],[0,2,3,5,6],[1,2,4,5,6],[0,3,4,5,6]],
-    6: [[0,1,3,4,5,6],[0,2,3,4,5,6],[1,2,3,4,5,6]],
+    4: [[1,2,4,6],[0,3,5,6],[0,2,5,7],[1,3,4,6],[0,1,3,6]],
+    5: [[0,1,3,4,6],[0,2,3,5,6],[1,2,4,5,7],[0,3,4,5,7]],
+    6: [[0,1,3,4,6,7],[0,2,3,5,6,7],[1,2,3,5,6,7]],
+    7: [[0,1,3,4,5,6,7],[0,1,2,3,5,6,7]],
+    8: [[0,1,2,3,4,5,6,7]],
   };
 
   /* =========================================================
@@ -838,7 +929,7 @@
   const metroSelect = $("metroSelect");
   const diffGroup = $("diffGroup");
   const lengthGroup = $("lengthGroup");
-  const scoreVal = $("scoreVal"), comboVal = $("comboVal"), accVal = $("accVal"), lvVal = $("lvVal");
+  const scoreVal = $("scoreVal"), accVal = $("accVal"), lvVal = $("lvVal");
   const phraseCounter = $("phraseCounter"), phraseDots = $("phraseDots");
   const banner = $("banner");
   const beatDots = Array.from(document.querySelectorAll(".beat-dot"));
@@ -848,6 +939,21 @@
   const keyCaption = $("keyCaption");
   const goalLine = $("goalLine");
   const overlay = $("overlay");
+  // プレイ中に触っても意味のない or 途中変更で不整合を起こす操作は非活性にする
+  const lockableSelects = [keySelect, scaleTypeSelect, beatSelect, revealSelect, labelSelect, metroSelect];
+  const lockablePillGroups = [diffGroup, lengthGroup];
+  function setControlsLocked(locked){
+    document.querySelector(".stage").classList.toggle("playing", locked);
+    lockableSelects.forEach(function(el){
+      el.classList.toggle("locked", locked);
+      el.disabled = locked;
+    });
+    lockablePillGroups.forEach(function(g){
+      g.querySelectorAll(".pill").forEach(function(b){ b.classList.toggle("locked", locked); });
+    });
+    bpmSlider.classList.toggle("locked", locked);
+    bpmSlider.disabled = locked;
+  }
 
   (function(){
     const rnd = document.createElement("option");
@@ -859,20 +965,35 @@
     opt.value = String(i); opt.textContent = prettyRoot(s.root);
     keySelect.appendChild(opt);
   });
-  keySelect.value = "0";
+  keySelect.value = "random";
 
   /* =========================================================
      状態
      ========================================================= */
   // 選択(「ランダム」を含む)と、実際に使う値を分けて持つ
-  let keySel = 0, scaleSel = "majorPenta", beatSel = "straight";
+  // 既定はすべてランダム。毎回条件が変わるほうが、特定のキーの絶対的な響きを
+  // 覚えてしまうのを防げる(このゲームが鍛えたいのは主音からの相対関係)。
+  // ひとつを集中的に練習したいときだけ、個別に固定する。
+  let keySel = "random", scaleSel = "random", beatSel = "random";
   let scaleIndex = 0;
   let scaleType = "majorPenta";   // 初期はペンタ(外れ音が少なく成功体験を作りやすい)
   let shuffleOn = false;
   let labelMode = "interval";
-  let diffMode = "adaptive";      // "adaptive" | 数値(固定レベルindex)
+  // むずかしさは「固定レベル」ではなく「レベルの帯」。
+  // 帯の中では ◎△✕ による調整がそのまま働くので、どれを選んでも
+  // 正解率85%付近を狙う仕組みは生きたまま、全体の重さだけが変わる。
+  const DIFF_BANDS = {
+    adaptive: { min: 0,  max: 19 },
+    easy:     { min: 0,  max: 5  },   // Lv1〜6
+    normal:   { min: 4,  max: 11 },   // Lv5〜12
+    hard:     { min: 10, max: 19 },   // Lv11〜20
+  };
+  let diffMode = "adaptive";
+  function diffBand(){ return DIFF_BANDS[diffMode] || DIFF_BANDS.adaptive; }
   let revealMode = "fade";        // "fade" | "show" | "rhythm" | "ear"
-  let sessionLen = 8;             // 0 = エンドレス
+  // 既定は16。レベルは1フレーズにつき最大1段しか上がらないので、
+  // 8フレーズだとどれだけうまくてもLv9までしか届かない(20段を使い切れない)。
+  let sessionLen = 16;            // 0 = エンドレス
   let bpm = 80;
   let metronomeOn = true;
 
@@ -890,19 +1011,54 @@
   let phraseIdx = 0;              // 0-based、今出題中(または直近)のフレーズ
   let curPattern = new Array(SLOTS).fill(null);
   let curNoteSlots = [];
-  let curIsRetry = false;
-  let retryQueue = [];
+
 
   // 集計
-  let score = 0, combo = 0, bestCombo = 0;
+  let score = 0;
   let phraseScores = [];
   let errStats = { timing:0, pitch:0, miss:0, extra:0, great:0 };
   let degStats = {};   // 音度ごとの取りこぼし率。弱点の特定と出題に使う
   let sessionKeyRootPc = 0;
-  let bestScoreEver = 0, bestAccEver = 0;   // 他人とではなく、自分の過去と比べる
+  // 自己ベスト: セッション合計スコア / 平均正確さ。他人とは比べない。
+  let bestScoreEver = 0, bestAccEver = 0;
+  let lastChromaActive = false;
+
+  /* ---- 遅延の自動補正 ----------------------------------------------
+     ユーザーに操作させずに、3つの経路から端末の遅れを見積もる。
+       (1) 音の出力遅延  AudioContext.outputLatency / baseLatency。
+           スケジュール時刻より実際に耳に届くのが遅れる分。
+       (2) イベントの配送遅延  PointerEvent.timeStamp は「実際に触れた時刻」、
+           performance.now() は「JSが受け取った時刻」。その差。
+       (3) 残りのズレ  上2つで取り切れないぶんを、演奏中の打鍵から学習する。
+           端末の遅延は必ず「遅れ」方向にしか出ないので、遅れ側の偏りだけを
+           補正する。早め方向の偏りは本人の走り癖なので、そのまま残す。
+  -------------------------------------------------------------------- */
+  let latencyLearned = 0;      // 秒
+  let latencySamples = [];
+  function audioOutLatency(){
+    if(!audioCtx) return 0;
+    const o = (typeof audioCtx.outputLatency === "number" && isFinite(audioCtx.outputLatency)) ? audioCtx.outputLatency : 0;
+    const b = (typeof audioCtx.baseLatency === "number" && isFinite(audioCtx.baseLatency)) ? audioCtx.baseLatency : 0;
+    return Math.max(0, Math.min(0.30, o + b));
+  }
+  function dispatchDelay(ev){
+    if(!ev || typeof ev.timeStamp !== "number" || !ev.timeStamp) return 0;
+    const d = (performance.now() - ev.timeStamp) / 1000;
+    return (isFinite(d) && d > 0) ? Math.min(0.08, d) : 0;
+  }
+  function learnLatency(rawDelta){
+    latencySamples.push(rawDelta);
+    if(latencySamples.length > 24) latencySamples.shift();
+    if(latencySamples.length < 8) return;
+    const sorted = latencySamples.slice().sort(function(a, b){ return a - b; });
+    const med = sorted[Math.floor(sorted.length / 2)];
+    const target = (med > 0.015) ? Math.min(med, 0.12) : 0;   // 遅れ側だけ補正
+    latencyLearned += (target - latencyLearned) * 0.3;         // ゆっくり寄せる
+  }
   // 目標設定理論: 「がんばる」より、具体的で少しだけ難しい目標のほうが伸びる。
   // 前回の実績+1 を次の目標にして、常に手が届きそうな一歩先を置く。
   let goalTarget = 0, goalHit = 0, prevStarCount = -1;
+  // セッションごとにレベルは振り出しへ。苦手な音程の記録と自己ベストだけ残す。
 
   const LOOKAHEAD_MS = 25;
   const SCHEDULE_AHEAD_S = 0.12;
@@ -961,7 +1117,7 @@
   function windows(){
     const eighth = (60 / bpm) / 2;
     return {
-      great: Math.min(0.10, Math.max(0.055, eighth * 0.28)),
+      great: Math.min(0.08, Math.max(0.048, eighth * 0.24)),
       near:  Math.min(0.26, Math.max(0.13,  eighth * 0.62)),
     };
   }
@@ -991,23 +1147,41 @@
       if(d >= span) return;
       const st = degStats[k];
       if(st.n < 3) return;
-      const r = st.err / st.n;
+      // 少ない試行で決めつけないよう、平均側へ寄せてから比べる
+      const r = (st.err + 1) / (st.n + 4);
       if(r > rate){ rate = r; best = d; }
     });
     return rate >= 0.34 ? best : -1;
   }
 
+  function levelCfg(){ return LADDER[Math.min(level, LADDER.length - 1)]; }
+  function chromaActive(){ return (levelCfg().chroma || 0) > 0; }
+
+  function pickLeap(kind){
+    const table = LEAP_TABLE[kind] || LEAP_TABLE.narrow;
+    let r = Math.random();
+    for(let i = 0; i < table.length; i++){
+      r -= table[i][1];
+      if(r <= 0) return table[i][0];
+    }
+    return table[table.length - 1][0];
+  }
+
   function generatePhrase(){
-    const cfg = LADDER[Math.min(level, LADDER.length - 1)];
+    const cfg = levelCfg();
     const scalePcs = getScalePcs();
     const span = Math.max(1, Math.min(cfg.span, scalePcs.length));
-    const density = Math.min(cfg.density, 6);
+    // 音数は範囲から抽選(毎回変動)。同じ音数が続かないので、
+    // 「型を覚える」ではなく「そのつど覚え直す」ゲームになる。
+    const dMin = cfg.dMin || 3;
+    const dMax = cfg.dMax || dMin;
+    const density = Math.max(1, Math.min(8, dMin + Math.floor(Math.random() * (dMax - dMin + 1))));
 
-    let bank = RHYTHM_PLAIN[density] || RHYTHM_PLAIN[4];
+    let bank = RHYTHM_PLAIN[density] || RHYTHM_PLAIN[3];
     if(cfg.sync && RHYTHM_SYNC[density] && Math.random() < 0.5) bank = RHYTHM_SYNC[density];
     const slots = pick(bank).slice();
 
-    // 出だしの音を決める。ずっと主音から始めていると「1音目はタダ」になり、
+    // 出だしの音。ずっと主音から始めていると「1音目はタダ」になり、
     // 音度を聴き取る力が育たない。レベルに応じて出だしを動かす。
     let startDeg = 0;
     if(span > 1 && cfg.start !== "tonic"){
@@ -1019,20 +1193,15 @@
       }
     }
 
-    // 旋律: 跳躍より順次進行を多くする(覚えやすく歌いやすい)
+    // 旋律を音度で組む。跳躍の広さはレベルで変える。
     const degs = [];
     let d = startDeg;
     for(let i = 0; i < slots.length; i++){
       if(i === 0){
         d = startDeg;
       } else if(span > 1){
-        const r = Math.random();
-        let step;
-        if(r < 0.20)      step = 0;
-        else if(r < 0.66) step = (Math.random() < 0.5 ? -1 : 1);
-        else if(r < 0.88) step = (Math.random() < 0.5 ? -2 : 2);
-        else              step = (Math.random() < 0.5 ? -3 : 3);
-        d += step;
+        const size = pickLeap(cfg.leap);
+        d += (size === 0) ? 0 : (Math.random() < 0.5 ? -size : size);
         // 端で折り返す
         if(d < 0) d = -d;
         if(d > span - 1) d = 2 * (span - 1) - d;
@@ -1051,22 +1220,47 @@
       degs[1 + Math.floor(Math.random() * (degs.length - 1))] = weak;
     }
 
-    const pattern = new Array(SLOTS).fill(null);
-    slots.forEach((s, i) => { pattern[s] = scalePcs[degs[i]]; });
-    return { pattern, noteSlots: slots.slice().sort((a,b) => a - b) };
+    // 音度 → 主音からの半音数。ここでスケール外の音(半音)を混ぜる。
+    // 最初と最後は動かさないので、調の輪郭は保たれたまま中身だけ色付く。
+    const formula = SCALE_FORMULAS[scaleType] || SCALE_FORMULAS.major;
+    const chroma = cfg.chroma || 0;
+    const semis = degs.map(function(dd, i){
+      let semi = formula[Math.max(0, Math.min(formula.length - 1, dd))];
+      if(chroma > 0 && i > 0 && i < degs.length - 1 && Math.random() < chroma){
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        const alt = ((semi + dir) % 12 + 12) % 12;
+        if(formula.indexOf(alt) === -1) semi = alt;   // スケール外になるときだけ採用
+      }
+      return semi;
+    });
+
+    // フレーズは「主音からの半音数 + リズム」で持つ。実際の音への変換は
+    // 鳴らす直前に行うので、キーが変わっても関係は崩れない。
+    const pairs = slots.map((sl, i) => ({ s: sl, v: semis[i] })).sort((a, b) => a.s - b.s);
+    return { slots: pairs.map((x) => x.s), semis: pairs.map((x) => x.v) };
   }
 
-  function nextPhrase(){
-    // 間隔をあけた再出題: 期限が来たものを優先
-    for(let i = 0; i < retryQueue.length; i++){
-      if(retryQueue[i].due <= phraseIdx){
-        const item = retryQueue.splice(i, 1)[0];
-        curIsRetry = true;
-        return item;
-      }
-    }
-    curIsRetry = false;
-    return generatePhrase();
+  // 主音からの半音数 → 実音
+  function renderPhrase(ph){
+    const rootPc = getScalePcs()[0];
+    const pattern = new Array(SLOTS).fill(null);
+    const noteSlots = [];
+    ph.slots.forEach(function(sl, i){
+      const semi = ((ph.semis[i] | 0) % 12 + 12) % 12;
+      pattern[sl] = (rootPc + semi) % 12;
+      noteSlots.push(sl);
+    });
+    return { pattern: pattern, noteSlots: noteSlots };
+  }
+  // 半音表現なので常に12音の中に収まる。半音を使わないレベルでは
+  // スケール内に収まっていることも確認する。
+  function isPhraseValid(pattern, noteSlots){
+    if(!noteSlots.length) return false;
+    if(chromaActive()) return noteSlots.every(function(sl){ return pattern[sl] !== null; });
+    const scalePcs = getScalePcs();
+    return noteSlots.every(function(sl){
+      return pattern[sl] !== null && scalePcs.indexOf(pattern[sl]) !== -1;
+    });
   }
 
   /* =========================================================
@@ -1076,20 +1270,26 @@
 
   function labelForPc(pc){
     if(labelMode !== "interval") return "";
-    const idx = getScalePcs().indexOf(pc);
-    if(idx === -1) return "";
-    return (INTERVALS[scaleType] || INTERVALS.major)[idx] || "";
+    const scalePcs = getScalePcs();
+    const idx = scalePcs.indexOf(pc);
+    if(idx !== -1) return (INTERVALS[scaleType] || INTERVALS.major)[idx] || "";
+    // スケール外の音を使うレベルでは、その鍵盤にも音程名を出す
+    if(!chromaActive()) return "";
+    return INTERVAL_12[((pc - scalePcs[0]) % 12 + 12) % 12];
   }
 
   // 「いま何が主音か」を常に見えるようにして、固定ドとの取り違えを防ぐ
   function refreshKeyCaption(){
     const root = prettyRoot(MAJOR_SCALES[scaleIndex].root);
-    keyCaption.textContent = keyTitle() + " ／ ● P1(主音) = " + root;
+    keyCaption.innerHTML =
+      "<b>" + keyTitle() + "</b>" +
+      "<span class=\"sep\">/</span><b>" + (shuffleOn ? "シャッフル" : "ストレート") + "</b>" +
+      "<span class=\"sep\">/</span>● P1(主音) = " + root;
   }
 
   function attachKey(el, pc){
     el.addEventListener("pointerdown", (e) => {
-      e.preventDefault(); el.classList.add("pressed"); handleKeyPress(pc);
+      e.preventDefault(); el.classList.add("pressed"); handleKeyPress(pc, e);
     });
     ["pointerup","pointercancel","pointerleave"].forEach((ev) =>
       el.addEventListener(ev, () => el.classList.remove("pressed")));
@@ -1107,7 +1307,7 @@
       const el = document.createElement("div");
       el.className = "bkey";
       const leftPct = ((def.afterWhite + 1) * 100) / 7;
-      const w = (100 / 7) * 0.62;
+      const w = (100 / 7) * 0.72;
       el.style.left = "calc(" + leftPct + "% - " + (w / 2) + "%)";
       el.style.width = w + "%";
       const name = document.createElement("div"); name.className = "name";
@@ -1123,8 +1323,9 @@
       const ref = keyEls[pc]; if(!ref) continue;
       ref.name.textContent = labelForPc(pc);
       const off = scalePcs.indexOf(pc) === -1;
+      const usable = !off || chromaActive();
       ref.el.classList.toggle("dim", off);
-      ref.el.classList.toggle("inert", off);
+      ref.el.classList.toggle("inert", !usable);
       ref.el.classList.toggle("tonic", pc === tonic);
     }
     refreshKeyCaption();
@@ -1220,7 +1421,7 @@
   function setBannerCount(n){
     banner.className = "banner";
     banner.textContent = "";
-    banner.appendChild(document.createTextNode("耳を " + keyTitle() + " に合わせて… "));
+    banner.appendChild(document.createTextNode("まもなくスタート "));
     const s = document.createElement("span"); s.className = "count-num"; s.textContent = String(n);
     banner.appendChild(s);
   }
@@ -1249,8 +1450,6 @@
   }
   function updateHUD(){
     scoreVal.textContent = String(score);
-    comboVal.textContent = String(combo);
-    comboVal.classList.toggle("hot", combo >= 3);
     accVal.textContent = phraseScores.length
       ? Math.round(100 * phraseScores.reduce((a,b) => a + b, 0) / phraseScores.length) + "%"
       : "--";
@@ -1266,8 +1465,8 @@
     const met = goalHit >= goalTarget;
     goalLine.className = "goal-line" + (met ? " met" : "");
     goalLine.textContent = met
-      ? "🎯 目標達成 ★★以上 " + goalHit + "回 — ここからは上乗せ"
-      : "🎯 このセッションの目標 ★★以上を " + goalHit + " / " + goalTarget + " 回";
+      ? "🎯 目標達成 ★★以上 " + goalHit + "回"
+      : "🎯 目標 ★★以上 " + goalHit + " / " + goalTarget;
   }
 
   function buildPhraseDots(){
@@ -1308,8 +1507,8 @@
 
   function effectiveReveal(){
     if(revealMode !== "fade") return revealMode;
-    if(level <= 2) return "show";
-    if(level <= 5) return "rhythm";
+    if(level <= 3) return "show";
+    if(level <= 8) return "rhythm";
     return "ear";
   }
 
@@ -1337,12 +1536,14 @@
     return null;
   }
 
-  function handleKeyPress(pc){
+  function handleKeyPress(pc, ev){
     ensureAudio();
-    const now = audioCtx.currentTime;
+    const now = audioCtx.currentTime;                 // 音を出すのは実時刻で
+    const known = audioOutLatency() + dispatchDelay(ev);
+    const tJudge = now - known - latencyLearned;      // 判定は補正した時刻で
 
-    // スケール外の鍵盤は出題されないので、押しても何も起こらない(誤タップで損をしない)
-    if(!inScale(pc)){ nudgeKey(pc); return; }
+    // 出題されない鍵盤は、押しても何も起こらない(誤タップで損をしない)
+    if(!inScale(pc) && !chromaActive()){ nudgeKey(pc); return; }
 
     const rec = isRunning ? liveRecord(now) : null;
     const role = rec ? rec.role : "idle";
@@ -1356,7 +1557,7 @@
     if(!isRunning || role !== "answer" || !rec.answerMap) return;
 
     const w = windows();
-    const elapsed = now - rec.start;
+    const elapsed = tJudge - rec.start;
     const hit = nearestUnanswered(elapsed, rec.offsets, rec.noteSlots, rec.answerMap);
 
     const allow = (hit.delta >= 0)
@@ -1380,6 +1581,8 @@
       const diff = ((expected - pc) % 12 + 12) % 12;
       hint = (diff === 0) ? "" : (diff <= 6 ? "↑" : "↓");
     }
+    // 補正前の生のズレを学習に回す(補正を足し戻してから記録)
+    if(tier !== "wrong") learnLatency(hit.delta + latencyLearned);
     logDegree(expected, tier === "wrong");
     rec.answerMap[hit.slot] = { tier: tier, pc: pc, hint: hint };
     judgeFlash(pc, tier, hint);
@@ -1400,7 +1603,7 @@
     e.preventDefault();
     const ref = keyEls[pc];
     if(ref){ ref.el.classList.add("pressed"); setTimeout(() => ref.el.classList.remove("pressed"), 110); }
-    handleKeyPress(pc);
+    handleKeyPress(pc, e);
   });
 
   /* =========================================================
@@ -1422,10 +1625,10 @@
     phraseScores.push(ratio);
 
     const stars = ratio >= 0.95 ? 3 : ratio >= 0.8 ? 2 : ratio >= 0.5 ? 1 : 0;
-    if(stars >= 2){ combo += 1; if(combo > bestCombo) bestCombo = combo; }
-    else if(stars === 0){ combo = 0; }
-
-    const gained = Math.round(ratio * 100 * (1 + Math.min(combo, 10) * 0.1) * revealBonus());
+    // 連続ではなく、そのフレーズの出来だけで点が決まる。
+    // 85%で練習する = 7回に1回は崩れる設計なので、連続を前提にした加点は
+    // 「狙いどおりの失敗」を余計な損失に変えてしまう。
+    const gained = Math.round(ratio * 100 * revealBonus());
     score += gained;
 
     if(stars >= 2){ goalHit += 1; }
@@ -1437,24 +1640,41 @@
       setTimeout(() => pianoWrap.classList.remove("win"), 800);
       playChime(getScalePcs()[0], audioCtx.currentTime + 0.01, stars);
     }
-    // うまくいかなかったフレーズは、少し間をあけて再出題(間隔をあけた検索練習)
-    if(stars <= 1){
-      retryQueue.push({ pattern: pattern.slice(), noteSlots: noteSlots.slice(), due: phraseIdx + 2 });
-      if(retryQueue.length > 4) retryQueue.shift();
+    // 適応: 楽譜に出た判定マークをそのまま使う。
+    // 全部◎なら1つ上げ、✕が1つでもあれば1つ下げ、それ以外は現状維持。
+    // プレイヤーが見ている記号と規則が一致するので、なぜ上下したのかが分かる。
+    // 分かるからこそ「次はこうすれば上がる」と行動を選べる(自己決定理論の自律性)。
+    //
+    // 音数が増えるほど「全部◎」は起こりにくく、「✕あり」は起こりやすくなるので、
+    // 上がる確率と下がる確率がレベルとともに自然に近づき、上限で釣り合う。
+    // 難易度の頭打ちを別のロジックで作らなくても、この規則だけで実現される。
+    {
+      let bad = 0, near = 0;
+      noteSlots.forEach(function(sl){
+        const a = answerMap[sl];
+        if(a && a.tier === "near") near += 1;
+        else if(!a || a.tier !== "great") bad += 1;
+      });
+      const band = diffBand();
+      if(bad === 0 && near === 0 && rec.extraTaps === 0){
+        if(level < band.max) level += 1;   // 全部◎
+      } else if(bad > 0){
+        if(level > band.min) level -= 1;   // ✕がある
+      }
+      // ◎と△だけなら現状維持
     }
-    // 適応: 直近2フレーズの平均で上げ下げし、正解率85%前後を保つ
-    if(diffMode === "adaptive" && phraseScores.length >= 2){
-      const last2 = (phraseScores[phraseScores.length-1] + phraseScores[phraseScores.length-2]) / 2;
-      if(last2 >= 0.9 && level < LADDER.length - 1) level += 1;
-      else if(last2 < 0.6 && level > 0) level -= 1;
+    // 半音を使うレベルに出入りしたら、鍵盤の有効・無効を切り替える
+    if(chromaActive() !== lastChromaActive){
+      lastChromaActive = chromaActive();
+      refreshPianoLabels();
     }
 
-    const msg = stars === 3 ? "パーフェクト!" + (combo >= 3 ? " " + combo + "コンボ 🔥" : "")
-              : stars === 2 ? "いいね!ほとんど合ってる"
-              : stars === 1 ? "おしい。もう一度この形が出るよ"
-              : "だいじょうぶ、まず音をよく聴こう";
+    const msg = stars === 3 ? "パーフェクト!"
+              : stars === 2 ? "いいね!"
+              : stars === 1 ? "おしい"
+              : "まず音をよく聴こう";
     const bonus = revealBonusLabel();
-    setBanner(msg + "  +" + gained + (bonus ? " (耳ボーナス " + bonus + ")" : ""),
+    setBanner(msg + " +" + gained + (bonus ? " " + bonus : ""),
               stars >= 2 ? "good" : "", Math.round(ratio * 100) + "%");
     updateHUD();
   }
@@ -1464,11 +1684,11 @@
      ========================================================= */
   function roleFor(m){
     if(m === 0) return "intro";
-    if(sessionLen && m >= 1 + sessionLen * 2) return "outro";
     return ((m - 1) % 2 === 0) ? "demo" : "answer";
   }
   function totalMeasures(){
-    return sessionLen ? (1 + sessionLen * 2 + 1) : Infinity;
+    // 採点は回答小節の中で(小節線の手前で)終わるので、締めの空小節は要らない。
+    return sessionLen ? (1 + sessionLen * 2) : Infinity;
   }
 
   function scheduleMeasure(rec){
@@ -1500,11 +1720,11 @@
     }
 
     if(role === "demo"){
-      const ph = nextPhrase();
-      curPattern = ph.pattern; curNoteSlots = ph.noteSlots;
-      rec.pattern = ph.pattern; rec.noteSlots = ph.noteSlots;
-      const pattern = ph.pattern, noteSlots = ph.noteSlots;
-      const isRetry = curIsRetry;
+      let out = renderPhrase(generatePhrase());
+      if(!isPhraseValid(out.pattern, out.noteSlots)) out = renderPhrase(generatePhrase());
+      curPattern = out.pattern; curNoteSlots = out.noteSlots;
+      rec.pattern = out.pattern; rec.noteSlots = out.noteSlots;
+      const pattern = out.pattern, noteSlots = out.noteSlots;
       const reveal = effectiveReveal();
 
       // 1拍目の見本音はわずかに強く弾く(そこで鳴ったことをはっきりさせる)
@@ -1512,8 +1732,7 @@
 
       at(start, function(){
         setPianoMode("demo");
-        setBanner(isRetry ? "もう一度このフレーズ。よく聴いて" : "よく聴いて、覚えて",
-                  "demo", isRetry ? "リトライ" : "見本");
+        setBanner("よく聴いて", "demo", "見本");
         rec.tlGen = renderTimeline(pattern, offsets, duration, "demo");
         pianoWrap.classList.add("cue");           // 見本の開始をひと目で
         setTimeout(() => pianoWrap.classList.remove("cue"), 260);
@@ -1541,7 +1760,7 @@
 
       at(start, function(){
         setPianoMode("answer");
-        setBanner("同じように返そう", "user", "あなたの番");
+        setBanner("同じように弾いて", "user", "あなたの番");
         rec.tlGen = renderTimeline(pattern, offsets, duration, "answer");
         rec.pendingMarks.forEach(function(m){ markCell(rec.tlGen, m.slot, m.tier, m.hint); });
         rec.pendingMarks.length = 0;
@@ -1550,7 +1769,7 @@
 
       // 判定窓が閉じた瞬間に「弾き忘れ」を表示(即時フィードバック)
       noteSlots.forEach((s) => {
-        at(start + offsets[s] + lateWindowFor(offsets[s], duration, w) + 0.02, function(){
+        at(start + offsets[s] + lateWindowFor(offsets[s], duration, w) + 0.02 + latencyLearned, function(){
           if(rec.answerMap[s] === undefined){
             rec.answerMap[s] = { tier: "miss", pc: pattern[s] };
             errStats.miss += 1;
@@ -1573,12 +1792,6 @@
       });
       return;
     }
-
-    // outro: 最後のフレーズを採点しきるための1小節
-    at(start, function(){
-      setPianoMode("idle");
-      renderTimeline(null, offsets, duration, "intro");
-    });
   }
 
   function advance(){
@@ -1606,9 +1819,13 @@
   }
 
   function scheduler(){
-    while(measureStartTime < audioCtx.currentTime + SCHEDULE_AHEAD_S + measureDuration){
+    // 先読みは SCHEDULE_AHEAD_S だけ。以前は + measureDuration していたため
+    // 次の小節が約3秒早く予約され、直前の演奏結果によるレベル変更が
+    // 次の見本に反映されない不具合が出ていた。
+    while(measureStartTime < audioCtx.currentTime + SCHEDULE_AHEAD_S){
       if(curMeasureIndex >= totalMeasures()){
-        at(measureStartTime, endSession);
+        // ごほうびの余韻が切れないよう、ほんの少しだけ待って締める
+        at(measureStartTime + 0.5, endSession);
         schedulerId = null;
         return;
       }
@@ -1646,12 +1863,18 @@
 
     isRunning = true;
     newSeqBus();
-    level = (diffMode === "adaptive") ? 1 : Math.max(0, Math.min(LADDER.length - 1, Number(diffMode)));
-    score = 0; combo = 0; bestCombo = 0;
+    latencySamples = [];   // 端末や出力先が変わっている可能性があるので測り直す
+    level = diffBand().min;
+    lastChromaActive = chromaActive();
+    refreshPianoLabels();
+    score = 0;
     phraseScores = []; phraseIdx = 0;
     errStats = { timing:0, pitch:0, miss:0, extra:0, great:0 };
-    degStats = {};
-    retryQueue = [];
+    // 苦手の記録は消さずに半減させる。過去の把握は残しつつ、直近を重く見る。
+    Object.keys(degStats).forEach(function(k){
+      degStats[k].n *= 0.5; degStats[k].err *= 0.5;
+      if(degStats[k].n < 0.5) delete degStats[k];
+    });
     goalTarget = computeGoal(); goalHit = 0; refreshGoalLine();
     curPattern = new Array(SLOTS).fill(null); curNoteSlots = [];
     scheduledMeasures = [];
@@ -1664,10 +1887,11 @@
     const t = computeMeasureTiming();
     measureOffsets = t.offsets; measureDuration = t.duration;
 
-    setBanner("耳を " + keyTitle() + " に合わせて…", "");
+    setBanner("まもなくスタート", "");
     setPianoMode("idle");
     startBtn.textContent = "やめる";
     startBtn.classList.add("stop");
+    setControlsLocked(true);
 
     scheduler();
     if(!rafId) rafId = requestAnimationFrame(playheadLoop);
@@ -1686,11 +1910,27 @@
     setPianoMode("idle");
     startBtn.textContent = "はじめる";
     startBtn.classList.remove("stop");
+    setControlsLocked(false);
+  }
+
+  // セッションの記録だけ初期化する。
+  // 苦手な音程の記録と自己ベストは、練習の積み上げなので残す。
+  function resetProgress(){
+    prevStarCount = -1;
+    score = 0;
+    phraseScores = []; phraseIdx = 0;
+    goalTarget = 0; goalHit = 0;
+    errStats = { timing:0, pitch:0, miss:0, extra:0, great:0 };
+    level = diffBand().min;
+    buildPhraseDots();
+    refreshGoalLine();
+    updateHUD();
+    setBanner("「はじめる」でスタート", "");
   }
 
   function stopGame(){
     haltAudioVisuals();
-    setBanner("とちゅうでやめました。「はじめる」でまた遊べます", "");
+    setBanner("", "");
   }
 
   function endSession(){
@@ -1702,29 +1942,25 @@
     $("resStars").textContent = "★★★☆☆☆".slice(3 - stars, 6 - stars);
     $("resScore").textContent = String(score);
     $("resAcc").textContent = Math.round(acc * 100) + "%";
-    $("resCombo").textContent = String(bestCombo);
     $("resLv").textContent = "Lv" + (level + 1);
 
-    const goalMet = goalHit >= goalTarget;
-    prevStarCount = goalHit;
-    const nextGoal = computeGoal();
-    const resGoal = $("resGoal");
-    resGoal.className = "result-goal" + (goalMet ? " met" : "");
-    resGoal.innerHTML = (goalMet
-        ? "目標達成 <b>★★以上 " + goalHit + "回</b>(目標 " + goalTarget + "回)"
-        : "目標 " + goalTarget + "回 に対して <b>" + goalHit + "回</b>。あと " + (goalTarget - goalHit) + " 回でした")
-      + "<br>次の目標 <b>★★以上を " + nextGoal + "回</b>";
+    prevStarCount = goalHit;   // 次のセッションの目標に反映する
 
-    const newScore = score > bestScoreEver, newAcc = acc > bestAccEver;
+    const newScore = score > bestScoreEver;
+    const newAcc = acc > bestAccEver;
+    const updated = [];
+    if(newScore) updated.push("スコア " + bestScoreEver + " → " + score);
+    if(newAcc) updated.push("正確さ " + Math.round(bestAccEver * 100) + "% → " + Math.round(acc * 100) + "%");
     const bestEl = $("resBest");
-    if(newScore || newAcc){
+    if(updated.length){
       bestEl.className = "result-best new";
-      bestEl.textContent = "🎉 自己ベスト更新!" +
-        (newScore ? " スコア " + bestScoreEver + " → " + score : "") +
-        (newAcc ? " 正確さ " + Math.round(bestAccEver * 100) + "% → " + Math.round(acc * 100) + "%" : "");
+      bestEl.innerHTML = "<span class=\"bl\">🎉 自己ベスト更新</span>" +
+        updated.map(function(t){ return "<span class=\"bv\">" + t + "</span>"; }).join("");
     } else {
       bestEl.className = "result-best";
-      bestEl.textContent = "自己ベスト: " + bestScoreEver + "点 / 正確さ " + Math.round(bestAccEver * 100) + "%";
+      bestEl.innerHTML = "<span class=\"bl\">自己ベスト</span>" +
+        "<span class=\"bv\">スコア " + bestScoreEver + "</span>" +
+        "<span class=\"bv\">正確さ " + Math.round(bestAccEver * 100) + "%</span>";
     }
     if(newScore) bestScoreEver = score;
     if(newAcc) bestAccEver = acc;
@@ -1757,10 +1993,10 @@
       tip += "<br><br>音程別に見ると <b>" + weakName + "</b> の取りこぼしが目立ちました(" +
              Math.round(weakRate * 100) + "%)。次のセッションでは、この音を多めに出題します。";
     }
-    tip += "<br><br>まとめて長くやるより、<b>1日5〜10分を毎日</b>のほうが伸びます。今日はここまでで十分です。";
+    tip += "<br><br>まとめて長くやるより、<b>1日5〜10分を毎日</b>のほうが伸びます。";
     $("resCoach").innerHTML = tip;
+    setBanner("", "");
     overlay.classList.add("show");
-    setBanner("おつかれさま!", "good");
   }
 
   /* =========================================================
@@ -1777,27 +2013,29 @@
   }
 
   startBtn.addEventListener("click", () => { isRunning ? stopGame() : startGame(); });
-  $("againBtn").addEventListener("click", () => { overlay.classList.remove("show"); startGame(); });
-  $("closeBtn").addEventListener("click", () => overlay.classList.remove("show"));
+  // 閉じるとセッションの記録は振り出しへ。苦手の記録と自己ベストだけ残る。
+  $("closeBtn").addEventListener("click", () => { overlay.classList.remove("show"); resetProgress(); });
 
+  // 鳴っている調やビートを途中で差し替えると、生成済みのフレーズと食い違う。
+  // プレイ中は選択だけを覚えておき、次のセッションから反映する。
   keySelect.addEventListener("change", () => {
     keySel = (keySelect.value === "random") ? "random" : Number(keySelect.value);
-    if(keySel !== "random"){ scaleIndex = keySel; refreshPianoLabels(); }
+    if(!isRunning && keySel !== "random"){ scaleIndex = keySel; refreshPianoLabels(); }
   });
   scaleTypeSelect.addEventListener("change", () => {
     scaleSel = scaleTypeSelect.value;
-    if(scaleSel !== "random"){ scaleType = scaleSel; refreshPianoLabels(); }
+    if(!isRunning && scaleSel !== "random"){ scaleType = scaleSel; refreshPianoLabels(); }
   });
   beatSelect.addEventListener("change", () => {
     beatSel = beatSelect.value;
-    if(beatSel !== "random") shuffleOn = (beatSel === "shuffle");
+    if(!isRunning && beatSel !== "random") shuffleOn = (beatSel === "shuffle");
   });
   labelSelect.addEventListener("change", () => { labelMode = labelSelect.value; refreshPianoLabels(); });
   revealSelect.addEventListener("change", () => { revealMode = revealSelect.value; });
   metroSelect.addEventListener("change", () => { metronomeOn = (metroSelect.value === "on"); });
   wireGroup(diffGroup, "diff", (v) => {
-    diffMode = (v === "adaptive") ? "adaptive" : Number(v);
-    if(!isRunning && diffMode !== "adaptive"){ level = Number(diffMode); updateHUD(); }
+    diffMode = DIFF_BANDS[v] ? v : "adaptive";
+    if(!isRunning){ level = diffBand().min; updateHUD(); }
   });
   wireGroup(lengthGroup, "len", (v) => { sessionLen = Number(v); buildPhraseDots(); });
 
@@ -1810,7 +2048,7 @@
   // 画面を離れた・閉じたときに音が鳴り続けないようにする
   document.addEventListener("visibilitychange", () => {
     if(document.hidden){
-      if(isRunning){ stopGame(); setBanner("画面を離れたので中断しました", ""); }
+      if(isRunning){ stopGame(); }
       else { hardKillAudio(); }
     }
   });
@@ -1833,6 +2071,9 @@
   buildPhraseDots();
   updateHUD();
   setPianoMode("idle");
+  // ランダム設定を最初に一度決めておく。開始前から
+  // 今どのキー・スケール・ビートなのかが鍵盤の下に出る。
+  resolveSelections();
 })();
 </script>
 </body>
