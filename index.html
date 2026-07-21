@@ -25,6 +25,11 @@
     --ivory-shadow:#D8CBAF;
     --key-black:#171012;
     --font-serif: Georgia, 'Hiragino Mincho ProN', serif;
+    /* まるっこい書体を優先。無い環境では順に下へ落ちる */
+    --font-round: 'Hiragino Maru Gothic ProN', 'ヒラギノ丸ゴ ProN W4',
+                  'Zen Maru Gothic', 'M PLUS Rounded 1c', 'Rounded Mplus 1c',
+                  'Quicksand', 'Varela Round', 'Comic Sans MS',
+                  'Hiragino Sans', sans-serif;
     --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', Roboto, sans-serif;
     --font-mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
   }
@@ -32,7 +37,7 @@
   /* ダブルタップ拡大を止める。manipulation はピンチ操作は残すので、
      拡大したい人の手段は奪わない。 */
   html, body, button, select, summary, label, a, .stat, .banner, .pdot,
-  .setup, .panel, .field-grid, .timeline, .beat-wrap, .result-card{
+  .setup, .panel, .field-grid, .beat-wrap, .result-card{
     touch-action:manipulation;
   }
   html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
@@ -64,14 +69,17 @@
     color:var(--gold);
     text-transform:uppercase;
   }
+  .title-block{text-align:center;}
   h1{
-    font-family:var(--font-serif);
+    font-family:var(--font-round);
     font-weight:700;
-    font-size:26px;
-    margin:2px 0 0;
-    letter-spacing:0.01em;
+    font-size:31px;
+    margin:4px 0 0;
+    letter-spacing:0.06em;
+    color:var(--ink);
+    text-shadow:0 2px 0 rgba(0,0,0,0.35), 0 0 22px rgba(201,162,39,0.28);
   }
-  .sub{font-size:12px; color:var(--muted); margin:6px 0 0; line-height:1.6;}
+  .sub{font-size:12px; color:var(--muted); margin:7px 0 0; line-height:1.7;}
 
   .label{font-family:var(--font-mono); font-size:11px; color:var(--muted);}
   .pill-group{display:flex; gap:6px; flex-wrap:wrap;}
@@ -162,63 +170,45 @@
     font-family:var(--font-serif); font-size:24px; font-weight:700; color:var(--gold);
   }
 
+  /* 拍の表示。楽譜を外したので、小節内のどこにいるかはここだけが示す。
+     拍のたびに寸法が変わると下の鍵盤までずれるので、
+     大きさは transform で見せ、レイアウト上の高さは固定する。 */
   .beat-wrap{
     background:var(--bg-panel);
     border:1px solid var(--line);
     border-radius:12px;
-    padding:14px 14px 14px;
+    padding:10px 14px;
+    display:flex; align-items:center; justify-content:center; gap:14px;
   }
-  /* 拍のたびに要素の寸法が変わると、その下の鍵盤まで上下にずれる。
-     大きさは transform で見せて、レイアウト上の高さは固定する。 */
+  .meter{
+    font-family:var(--font-mono); font-size:12px; color:var(--muted);
+    letter-spacing:0.06em; flex:none;
+  }
   .beat-dots{
-    display:flex; justify-content:center; align-items:center;
-    gap:10px; height:16px; margin-bottom:10px;
+    display:flex; align-items:center; gap:12px; height:30px;
   }
   .beat-dot{
-    width:10px; height:10px; border-radius:50%; flex:none;
-    background:var(--line);
-    transition:transform .08s ease, background .08s ease, box-shadow .08s ease;
-  }
-  .beat-dot.on{transform:scale(1.4); background:var(--ink); box-shadow:0 0 8px var(--ink);}
-  .beat-dot.on.accent{background:var(--gold); box-shadow:0 0 8px var(--gold-glow);}
-
-  .timeline{
-    position:relative;
-    height:52px;
-    background:var(--bg-panel-2);
+    width:30px; height:30px; border-radius:50%; flex:none;
     border:1px solid var(--line);
-    border-radius:8px;
-    overflow:hidden;
+    background:var(--bg-panel-2);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .08s ease, background .08s ease, box-shadow .08s ease, border-color .08s ease;
   }
-  .tl-beatline{position:absolute; top:0; bottom:0; width:1px; background:var(--line);}
-  .tl-cell{position:absolute; top:5px; bottom:5px; border-radius:6px;}
-  .tl-dot{
-    position:absolute; left:50%; top:50%;
-    width:12px; height:12px; border-radius:50%;
-    transform:translate(-50%,-50%) scale(1);
-    background:#5d4c3d;
-    transition:transform .08s ease, background .08s ease, box-shadow .08s ease;
+  .beat-dot span{
+    font-family:var(--font-mono); font-size:12px; font-weight:700;
+    color:var(--muted); transition:color .08s ease;
   }
-  .tl-cell.rest .tl-dot,
-  .tl-cell.hidden-note .tl-dot{display:none;}
-  .tl-cell.lit .tl-dot{transform:translate(-50%,-50%) scale(1.6); background:var(--gold); box-shadow:0 0 12px var(--gold-glow);}
-  .tl-cell.guide .tl-dot{background:transparent; border:2px solid var(--clay); box-shadow:none;}
-  .tl-mark{
-    position:absolute; left:50%; top:50%;
-    transform:translate(-50%,-50%);
-    font-family:var(--font-serif); font-weight:700; font-size:17px; z-index:2;
-    white-space:nowrap;
+  .beat-dot.on{
+    transform:scale(1.12);
+    background:var(--ink); border-color:var(--ink);
+    box-shadow:0 0 12px rgba(239,231,216,0.45);
   }
-  .tl-mark.ok{color:var(--ok); text-shadow:0 0 8px var(--ok-glow);}
-  .tl-mark.near{color:var(--near); text-shadow:0 0 8px var(--near-glow);}
-  .tl-mark.bad{color:var(--bad); text-shadow:0 0 8px var(--bad-glow);}
-  .tl-playhead{
-    position:absolute; top:0; bottom:0; left:0; width:3px;
-    background:var(--gold); box-shadow:0 0 10px var(--gold-glow);
-    border-radius:2px; z-index:3; opacity:0;
+  .beat-dot.on span{color:var(--bg-deep);}
+  .beat-dot.on.accent{
+    background:var(--gold); border-color:var(--gold);
+    box-shadow:0 0 14px var(--gold-glow);
   }
-  .tl-playhead.show{opacity:1;}
-  .tl-playhead.user-turn{background:#E8735F; box-shadow:0 0 10px var(--bad-glow);}
+
 
   .piano-wrap{
     position:relative;
@@ -282,7 +272,6 @@
   .wkey.near{background:var(--near); box-shadow:0 4px 0 rgba(224,168,59,0.6), 0 6px 12px var(--near-glow);}
   .wkey.wrong{background:var(--bad); box-shadow:0 4px 0 rgba(224,72,59,0.6), 0 6px 12px var(--bad-glow);}
   .wkey.pressed{transform:translateY(4px); box-shadow:0 1px 0 var(--ivory-shadow), 0 2px 4px rgba(0,0,0,0.35);}
-  .wkey.dim{opacity:0.5;}
   .wkey.tonic::after{
     content:""; position:absolute; top:8px; left:50%; transform:translateX(-50%);
     width:6px; height:6px; border-radius:50%; background:var(--clay); opacity:0.8;
@@ -302,7 +291,6 @@
   .bkey.near{background:var(--near); box-shadow:0 3px 0 rgba(224,168,59,0.6);}
   .bkey.wrong{background:var(--bad); box-shadow:0 3px 0 rgba(224,72,59,0.6);}
   .bkey.pressed{transform:translateY(3px); box-shadow:0 1px 0 #000;}
-  .bkey.dim{opacity:0.55;}
   .bkey.tonic::after{
     content:""; position:absolute; top:6px; left:50%; transform:translateX(-50%);
     width:5px; height:5px; border-radius:50%; background:var(--clay);
@@ -315,6 +303,14 @@
     text-align:center; margin:8px 0 2px;
     font-family:var(--font-mono); font-size:10.5px; color:var(--muted);
     letter-spacing:0.02em;
+  }
+  /* 取れなかった音の「正解はここ」表示。押した鍵盤の✕と見分けられるよう
+     色も形も変える(赤い✕ = 自分が押した所 / 金の枠 = 本当の位置)。 */
+  .wkey.reveal, .bkey.reveal{
+    outline:3px solid var(--gold);
+    outline-offset:-3px;
+    box-shadow:0 0 20px var(--gold-glow);
+    z-index:4;
   }
   .judge-pop{
     position:absolute; top:-8px; left:50%; transform:translate(-50%, 0);
@@ -344,7 +340,6 @@
     background:var(--gold); color:var(--bg-deep);
   }
   .btn.stop{background:var(--clay); color:var(--ink);}
-  .btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--line);}
   .tempo{display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; color:var(--muted);}
   .tempo input[type=range]{width:110px;}
   .tempo .bpmval{color:var(--gold);}
@@ -381,7 +376,6 @@
     border-radius:12px; padding:13px 14px;
     display:flex; flex-direction:column; gap:11px;
   }
-  .wkey.inert, .bkey.inert{cursor:default; opacity:0.32;}
   .piano-wrap.listen .wkey, .piano-wrap.listen .bkey{cursor:default;}
   .note b{color:var(--ink); font-weight:600;}
 
@@ -466,11 +460,11 @@
 </head>
 <body>
 <div class="stage">
-  <div>
+  <header class="title-block">
     <span class="kicker">Echo Keys — 聴いて・まねて・耳を鍛える</span>
     <h1>まねっこピアノ</h1>
-    <p class="sub">1小節の見本を聴いて、次の1小節でそっくり返す。リズムの正確さと「音の高さ」を同時に鍛えます。</p>
-  </div>
+    <p class="sub">1小節の見本を聴いて、次の1小節でそっくり返す。<br>リズムの正確さと「音の高さ」を同時に鍛えます。</p>
+  </header>
 
   <div class="hud">
     <div class="stat"><span class="stat-label">スコア</span><span class="stat-value" id="scoreVal">0</span></div>
@@ -488,14 +482,12 @@
   <div class="banner" id="banner">「はじめる」でスタート</div>
 
   <div class="beat-wrap">
-    <div class="beat-dots" id="beatDots">
-      <div class="beat-dot accent"></div>
-      <div class="beat-dot"></div>
-      <div class="beat-dot"></div>
-      <div class="beat-dot"></div>
-    </div>
-    <div class="timeline" id="timeline">
-      <div class="tl-playhead" id="tlPlayhead"></div>
+    <span class="meter">4/4</span>
+    <div class="beat-dots">
+      <div class="beat-dot accent"><span>1</span></div>
+      <div class="beat-dot"><span>2</span></div>
+      <div class="beat-dot"><span>3</span></div>
+      <div class="beat-dot"><span>4</span></div>
     </div>
   </div>
 
@@ -527,9 +519,8 @@
     <div class="mode-row">
       <span class="label">長さ</span>
       <div class="pill-group" id="lengthGroup">
-        <button class="pill" data-len="8">8フレーズ</button>
-        <button class="pill active" data-len="16">16フレーズ</button>
-        <button class="pill" data-len="32">32フレーズ</button>
+        <button class="pill active" data-len="8">8フレーズ</button>
+        <button class="pill" data-len="16">16フレーズ</button>
         <button class="pill" data-len="0">エンドレス</button>
       </div>
     </div>
@@ -556,7 +547,6 @@
         <select id="revealSelect">
           <option value="fade" selected>上達に応じて減らす</option>
           <option value="show">鍵盤も光る</option>
-          <option value="rhythm">リズムだけ見える</option>
           <option value="ear">耳だけ</option>
         </select>
 
@@ -589,10 +579,10 @@
       <p class="note">
         見本の1小節を聴き、次の1小節で同じように返します。<br>
         <b style="color:var(--ok)">◎</b> ぴったり / <b style="color:var(--near)">△</b> 音は合ったがズレた / <b style="color:var(--bad)">✕</b> ちがう音・弾き忘れ。
-        音を外すと <b style="color:var(--bad)">↑↓</b> で正解の方向が出ます。<br>
+        取れなかった音は、正しい鍵盤が<b style="color:var(--gold)">金色の枠</b>で光ります。押し間違えた鍵盤の<b style="color:var(--bad)">✕</b>と見比べてください。<br>
 
         見本の最中は鍵盤が鳴りません(自分の音で見本が消えないため)。止めているあいだは自由に弾けます。
-        うすい鍵盤は出題されないので、押しても減点されません。
+        音程名が出ていない鍵盤はスケールの外なので出題されません。押すと音ちがい扱いになります。
         パソコンは <b>A W S E D F T G Y H U J</b>。
       </p>
     </div>
@@ -933,7 +923,6 @@
   const phraseCounter = $("phraseCounter"), phraseDots = $("phraseDots");
   const banner = $("banner");
   const beatDots = Array.from(document.querySelectorAll(".beat-dot"));
-  const timelineEl = $("timeline"), tlPlayhead = $("tlPlayhead");
   const pianoEl = $("piano"), pianoWrap = $("pianoWrap"), pianoBadge = $("pianoBadge");
   const startBtn = $("startBtn"), bpmSlider = $("bpmSlider"), bpmVal = $("bpmVal");
   const keyCaption = $("keyCaption");
@@ -990,17 +979,17 @@
   };
   let diffMode = "adaptive";
   function diffBand(){ return DIFF_BANDS[diffMode] || DIFF_BANDS.adaptive; }
-  let revealMode = "fade";        // "fade" | "show" | "rhythm" | "ear"
-  // 既定は16。レベルは1フレーズにつき最大1段しか上がらないので、
-  // 8フレーズだとどれだけうまくてもLv9までしか届かない(20段を使い切れない)。
-  let sessionLen = 16;            // 0 = エンドレス
+  let revealMode = "fade";        // "fade" | "show" | "ear"
+  // レベルは1フレーズにつき最大1段。8フレーズならLv9あたりが上限になる。
+  // 高いレベルまで行きたいときは16フレーズかエンドレスを選ぶ。
+  let sessionLen = 8;             // 0 = エンドレス
   let bpm = 80;
   let metronomeOn = true;
 
   let level = 1;                  // LADDER の index
   let isRunning = false;
 
-  let schedulerId = null, rafId = null;
+  let schedulerId = null;
   let pendingTimeouts = [];
 
   let measureStartTime = 0, measureOffsets = [], measureDuration = 0;
@@ -1322,10 +1311,6 @@
     for(let pc = 0; pc < 12; pc++){
       const ref = keyEls[pc]; if(!ref) continue;
       ref.name.textContent = labelForPc(pc);
-      const off = scalePcs.indexOf(pc) === -1;
-      const usable = !off || chromaActive();
-      ref.el.classList.toggle("dim", off);
-      ref.el.classList.toggle("inert", !usable);
       ref.el.classList.toggle("tonic", pc === tonic);
     }
     refreshKeyCaption();
@@ -1347,6 +1332,14 @@
     setTimeout(() => ref.el.classList.remove("pressed"), 110);
   }
 
+  // 取れなかった音は、正しい鍵盤を金色の枠で示す。
+  // 押し間違えたときも弾き忘れたときも、同じ見せ方にそろえる。
+  function revealKey(pc){
+    const ref = keyEls[pc]; if(!ref) return;
+    ref.el.classList.add("reveal");
+    setTimeout(() => ref.el.classList.remove("reveal"), 700);
+  }
+
   function judgeFlash(pc, tier, extraText){
     const ref = keyEls[pc]; if(!ref) return;
     const cls = tier === "great" ? "correct" : tier === "near" ? "near" : "wrong";
@@ -1357,53 +1350,6 @@
     pop.textContent = (tier === "great" ? "◎" : tier === "near" ? "△" : "✕") + (extraText || "");
     ref.el.appendChild(pop);
     setTimeout(() => { if(pop.parentNode) pop.parentNode.removeChild(pop); }, 640);
-  }
-
-  /* =========================================================
-     タイムライン
-     ========================================================= */
-  let tlCells = [], tlGen = 0;
-
-  function renderTimeline(pattern, offsets, duration, role){
-    tlGen += 1; tlCells = [];
-    Array.from(timelineEl.children).forEach((c) => { if(c !== tlPlayhead) timelineEl.removeChild(c); });
-    for(let b = 1; b < 4; b++){
-      const line = document.createElement("div");
-      line.className = "tl-beatline";
-      line.style.left = ((offsets[b * 2] / duration) * 100) + "%";
-      timelineEl.appendChild(line);
-    }
-    const showRhythmInDemo = (effectiveReveal() !== "ear");
-    for(let i = 0; i < SLOTS; i++){
-      const cell = document.createElement("div");
-      cell.className = "tl-cell";
-      cell.style.left = "calc(" + ((offsets[i] / duration) * 100) + "% + 2px)";
-      cell.style.width = "calc(" + ((slotDurationAt(i, offsets, duration) / duration) * 100) + "% - 4px)";
-      const dot = document.createElement("div"); dot.className = "tl-dot"; cell.appendChild(dot);
-      if(!pattern || pattern[i] === null){
-        cell.classList.add("rest");
-      } else if(role === "demo"){
-        if(!showRhythmInDemo) cell.classList.add("hidden-note");
-      } else if(role === "answer"){
-        if(guideActive()) cell.classList.add("guide"); else cell.classList.add("hidden-note");
-      }
-      timelineEl.appendChild(cell); tlCells.push(cell);
-    }
-    return tlGen;
-  }
-  function litCell(gen, i, on){
-    if(gen !== tlGen) return;
-    const c = tlCells[i]; if(c) c.classList.toggle("lit", on);
-  }
-  function markCell(gen, i, tier, extraText){
-    if(gen !== tlGen) return;
-    const c = tlCells[i];
-    if(!c || c.querySelector(".tl-mark")) return;
-    const m = document.createElement("div");
-    m.className = "tl-mark " + (tier === "great" ? "ok" : tier === "near" ? "near" : "bad");
-    m.textContent = (tier === "great" ? "◎" : tier === "near" ? "△" : "✕") + (extraText || "");
-    c.classList.remove("guide","hidden-note");
-    c.appendChild(m);
   }
 
   /* =========================================================
@@ -1489,16 +1435,11 @@
   /* =========================================================
      見本の見せ方(ヒントのフェード)
      ========================================================= */
-  function guideActive(){
-    const r = effectiveReveal();
-    return r !== "ear";              // 耳だけモードでは位置ガイドも出さない
-  }
   function inScale(pc){ return getScalePcs().indexOf(pc) !== -1; }
 
   // ヒントを削るほど得点が伸びる。難しくて効果の高い練習ほど得になるようにする。
   function revealBonus(){
-    const r = effectiveReveal();
-    return r === "ear" ? 1.5 : r === "rhythm" ? 1.25 : 1.0;
+    return effectiveReveal() === "ear" ? 1.5 : 1.0;
   }
   function revealBonusLabel(){
     const b = revealBonus();
@@ -1507,9 +1448,7 @@
 
   function effectiveReveal(){
     if(revealMode !== "fade") return revealMode;
-    if(level <= 3) return "show";
-    if(level <= 8) return "rhythm";
-    return "ear";
+    return (level <= 5) ? "show" : "ear";
   }
 
   /* =========================================================
@@ -1542,9 +1481,6 @@
     const known = audioOutLatency() + dispatchDelay(ev);
     const tJudge = now - known - latencyLearned;      // 判定は補正した時刻で
 
-    // 出題されない鍵盤は、押しても何も起こらない(誤タップで損をしない)
-    if(!inScale(pc) && !chromaActive()){ nudgeKey(pc); return; }
-
     const rec = isRunning ? liveRecord(now) : null;
     const role = rec ? rec.role : "idle";
 
@@ -1570,27 +1506,21 @@
       return;
     }
     const expected = rec.pattern[hit.slot];
-    let tier, hint = "";
+    let tier;
     if(expected === pc){
       tier = Math.abs(hit.delta) <= w.great ? "great" : "near";
       if(tier === "great") errStats.great += 1; else errStats.timing += 1;
     } else {
       tier = "wrong";
       errStats.pitch += 1;
-      // 正解が上か下かの方向ヒント(近いほうの向きで示す)
-      const diff = ((expected - pc) % 12 + 12) % 12;
-      hint = (diff === 0) ? "" : (diff <= 6 ? "↑" : "↓");
     }
     // 補正前の生のズレを学習に回す(補正を足し戻してから記録)
     if(tier !== "wrong") learnLatency(hit.delta + latencyLearned);
     logDegree(expected, tier === "wrong");
-    rec.answerMap[hit.slot] = { tier: tier, pc: pc, hint: hint };
-    judgeFlash(pc, tier, hint);
+    rec.answerMap[hit.slot] = { tier: tier, pc: pc };
+    judgeFlash(pc, tier, "");
+    if(tier === "wrong") revealKey(expected);   // 正解はこっち、と同時に示す
     playJudgeSound(tier, now);
-    // 1拍目を小節の頭ちょうど(あるいは少し早め)に叩くと、まだタイムラインが
-    // 描き変わっていないことがある。その場合は保留して、描画直後に反映する。
-    if(rec.tlGen === -1) rec.pendingMarks.push({ slot: hit.slot, tier: tier, hint: hint });
-    else markCell(rec.tlGen, hit.slot, tier, hint);
   }
 
   const KEYBOARD_MAP = { a:0, w:1, s:2, e:3, d:4, f:5, t:6, g:7, y:8, h:9, u:10, j:11 };
@@ -1709,10 +1639,7 @@
 
     if(role === "intro"){
       playCadence(getScalePcs()[0], start, beatDur);
-      at(start, function(){
-        setPianoMode("idle");
-        renderTimeline(null, offsets, duration, "intro");
-      });
+      at(start, function(){ setPianoMode("idle"); });
       for(let b = 0; b < 4; b++){
         at(start + offsets[b * 2], (function(k){ return function(){ setBannerCount(k + 1); }; })(b));
       }
@@ -1733,7 +1660,6 @@
       at(start, function(){
         setPianoMode("demo");
         setBanner("よく聴いて", "demo", "見本");
-        rec.tlGen = renderTimeline(pattern, offsets, duration, "demo");
         pianoWrap.classList.add("cue");           // 見本の開始をひと目で
         setTimeout(() => pianoWrap.classList.remove("cue"), 260);
       });
@@ -1741,11 +1667,9 @@
         const dur = slotDurationAt(s, offsets, duration);
         at(start + offsets[s], function(){
           if(reveal === "show") litKey(pattern[s], true);
-          if(reveal !== "ear") litCell(rec.tlGen, s, true);
         });
         at(start + offsets[s] + dur * 0.85, function(){
           if(reveal === "show") litKey(pattern[s], false);
-          litCell(rec.tlGen, s, false);
         });
       });
       return;
@@ -1761,9 +1685,6 @@
       at(start, function(){
         setPianoMode("answer");
         setBanner("同じように弾いて", "user", "あなたの番");
-        rec.tlGen = renderTimeline(pattern, offsets, duration, "answer");
-        rec.pendingMarks.forEach(function(m){ markCell(rec.tlGen, m.slot, m.tier, m.hint); });
-        rec.pendingMarks.length = 0;
         highlightCurrentDot(myPhraseIdx);
       });
 
@@ -1774,7 +1695,9 @@
             rec.answerMap[s] = { tier: "miss", pc: pattern[s] };
             errStats.miss += 1;
             logDegree(pattern[s], true);
-            markCell(rec.tlGen, s, "wrong", "");
+            // 弾き忘れも同じ見せ方。鳴るはずだった鍵盤を金枠で示して✕を出す
+            revealKey(pattern[s]);
+            judgeFlash(pattern[s], "miss", "");
           }
         });
       });
@@ -1805,8 +1728,6 @@
       noteSlots: curNoteSlots,
       answerMap: null,
       extraTaps: 0,
-      tlGen: -1,
-      pendingMarks: [],   // タイムライン描画前(=小節の頭ぴったり)に来た判定を保留する
     };
     scheduledMeasures.push(rec);
     if(scheduledMeasures.length > 5) scheduledMeasures.shift();
@@ -1832,21 +1753,6 @@
       advance();
     }
     schedulerId = setTimeout(scheduler, LOOKAHEAD_MS);
-  }
-
-  function playheadLoop(){
-    if(!isRunning){ rafId = null; return; }
-    const now = audioCtx.currentTime;
-    for(let i = 0; i < scheduledMeasures.length; i++){
-      const m = scheduledMeasures[i];
-      if(now >= m.start && now < m.start + m.duration){
-        tlPlayhead.style.left = (((now - m.start) / m.duration) * 100) + "%";
-        tlPlayhead.classList.add("show");
-        tlPlayhead.classList.toggle("user-turn", m.role === "answer");
-        break;
-      }
-    }
-    rafId = requestAnimationFrame(playheadLoop);
   }
 
   /* =========================================================
@@ -1894,7 +1800,6 @@
     setControlsLocked(true);
 
     scheduler();
-    if(!rafId) rafId = requestAnimationFrame(playheadLoop);
   }
 
   function haltAudioVisuals(){
@@ -1903,8 +1808,6 @@
     clearPendingTimeouts();
     killSeqBus();   // 先読みで予約済みのクリック・見本の音もここで全部落とす
     scheduledMeasures = [];
-    if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
-    tlPlayhead.classList.remove("show","user-turn");
     setBeat(-1);
     clearKeyFx();
     setPianoMode("idle");
