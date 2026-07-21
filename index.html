@@ -73,13 +73,21 @@
   h1{
     font-family:var(--font-round);
     font-weight:700;
-    font-size:31px;
-    margin:4px 0 0;
-    letter-spacing:0.06em;
+    font-size:30px;
+    margin:6px 0 0;
+    letter-spacing:0.1em;
     color:var(--ink);
-    text-shadow:0 2px 0 rgba(0,0,0,0.35), 0 0 22px rgba(201,162,39,0.28);
   }
-  .sub{font-size:12px; color:var(--muted); margin:7px 0 0; line-height:1.7;}
+  /* 見出しの下に細い金の罫。装飾は一本だけに抑える。 */
+  .title-block h1::after{
+    content:"";
+    display:block;
+    width:38px; height:1px;
+    margin:11px auto 0;
+    background:var(--gold);
+    opacity:0.55;
+  }
+  .sub{font-size:12px; color:var(--muted); margin:10px 0 0; line-height:1.7;}
 
   .label{font-family:var(--font-mono); font-size:11px; color:var(--muted);}
   .pill-group{display:flex; gap:6px; flex-wrap:wrap;}
@@ -306,12 +314,19 @@
   }
   /* 取れなかった音の「正解はここ」表示。押した鍵盤の✕と見分けられるよう
      色も形も変える(赤い✕ = 自分が押した所 / 金の枠 = 本当の位置)。 */
+  /* 取れなかった音の「正解はここ」表示 */
   .wkey.reveal, .bkey.reveal{
-    outline:3px solid var(--gold);
-    outline-offset:-3px;
-    box-shadow:0 0 20px var(--gold-glow);
-    z-index:4;
+    outline:4px solid var(--gold);
+    outline-offset:-4px;
+    box-shadow:0 0 26px var(--gold-glow);
+    z-index:5;
   }
+  .beat-dot.missed{
+    background:var(--bad) !important;
+    border-color:var(--bad) !important;
+    box-shadow:0 0 14px var(--bad-glow) !important;
+  }
+  .beat-dot.missed span{color:var(--ink);}
   .judge-pop{
     position:absolute; top:-8px; left:50%; transform:translate(-50%, 0);
     font-family:var(--font-serif); font-weight:700; font-size:20px;
@@ -403,7 +418,6 @@
   .result-rank{
     font-family:var(--font-serif); font-size:46px; font-weight:700;
     color:var(--gold); margin:8px 0 0; letter-spacing:0.05em; line-height:1.1;
-    text-shadow:0 0 24px rgba(201,162,39,0.35);
   }
   .result-stars{font-size:26px; color:var(--gold); letter-spacing:0.2em; margin:4px 0 18px;}
 
@@ -469,7 +483,7 @@
   <div class="hud">
     <div class="stat"><span class="stat-label">スコア</span><span class="stat-value" id="scoreVal">0</span></div>
     <div class="stat"><span class="stat-label">正確さ</span><span class="stat-value" id="accVal">--</span></div>
-    <div class="stat"><span class="stat-label">レベル</span><span class="stat-value" id="lvVal">2</span></div>
+    <div class="stat"><span class="stat-label">レベル</span><span class="stat-value" id="lvVal">Lv1</span></div>
   </div>
 
   <div class="progress-row">
@@ -579,7 +593,7 @@
       <p class="note">
         見本の1小節を聴き、次の1小節で同じように返します。<br>
         <b style="color:var(--ok)">◎</b> ぴったり / <b style="color:var(--near)">△</b> 音は合ったがズレた / <b style="color:var(--bad)">✕</b> ちがう音・弾き忘れ。
-        取れなかった音は、正しい鍵盤が<b style="color:var(--gold)">金色の枠</b>で光ります。押し間違えた鍵盤の<b style="color:var(--bad)">✕</b>と見比べてください。<br>
+        取れなかった音は、正しい鍵盤が<b style="color:var(--gold)">金色の枠</b>で光ります。ただし<b>耳だけモード</b>(Lv7以降)では正解を出しません。答えを毎回見せると、自分で誤りに気づく力が育たないためです。弾き忘れたときは<b style="color:var(--bad)">その拍の丸が赤く</b>なり、ヒントのあるレベルでは正しい鍵盤が金枠と<b style="color:var(--bad)">✕</b>で光ります。<br>
 
         見本の最中は鍵盤が鳴りません(自分の音で見本が消えないため)。止めているあいだは自由に弾けます。
         音程名が出ていない鍵盤はスケールの外なので出題されません。押すと音ちがい扱いになります。
@@ -986,7 +1000,7 @@
   let bpm = 80;
   let metronomeOn = true;
 
-  let level = 1;                  // LADDER の index
+  let level = 0;                  // LADDER の index (0 = Lv1)
   let isRunning = false;
 
   let schedulerId = null;
@@ -1099,15 +1113,17 @@
   function lateWindowFor(slotOffset, dur, w){
     return Math.max(w.great, Math.min(w.near, dur - 0.12 - slotOffset));
   }
-  // テンポに対する比率(28%)で決め、上限100ms・下限55msで挟む。
+  // テンポに対する比率で決め、上下を絶対値で挟む。
   // 比率にする理由は2つ。人のタップ誤差は音符の間隔にほぼ比例して大きくなること
   // (スカラー時間特性)と、窓が音符間隔の半分に近づくと隣の音と判定が重なって
-  // 曖昧になること。28%なら隣とのあいだに必ず余裕が残る。
+  // 曖昧になること。
+  // △の窓は「弾き忘れ」を知らせるまでの待ち時間そのものなので、
+  // 遅れの許容として不自然にならない範囲でできるだけ短くしている。
   function windows(){
     const eighth = (60 / bpm) / 2;
     return {
       great: Math.min(0.08, Math.max(0.048, eighth * 0.24)),
-      near:  Math.min(0.26, Math.max(0.13,  eighth * 0.62)),
+      near:  Math.min(0.20, Math.max(0.11,  eighth * 0.48)),
     };
   }
 
@@ -1332,24 +1348,55 @@
     setTimeout(() => ref.el.classList.remove("pressed"), 110);
   }
 
-  // 取れなかった音は、正しい鍵盤を金色の枠で示す。
-  // 押し間違えたときも弾き忘れたときも、同じ見せ方にそろえる。
+  // 取れなかった音の正解を、金色の枠で示す。
+  // ただし出すのはヒントが有効なレベルまで。
+  // 正解を常に見せると、自分で誤りに気づく力が育たない
+  // (guidance hypothesis / Salmoni, Schmidt & Walter 1984)。
+  // 耳だけモードでは出さず、答えは自分の記憶から取り出してもらう。
+  // 次の音符にかからない長さ。8分音符の45%を上限200ms・下限90msで挟む。
+  function revealMs(){
+    const eighth = (60 / bpm) / 2;
+    return Math.max(90, Math.min(200, eighth * 1000 * 0.45));
+  }
   function revealKey(pc){
+    if(effectiveReveal() === "ear") return;
     const ref = keyEls[pc]; if(!ref) return;
+    const ms = revealMs();
+    ref.el.classList.remove("reveal");
+    void ref.el.offsetWidth;
     ref.el.classList.add("reveal");
-    setTimeout(() => ref.el.classList.remove("reveal"), 700);
+    setTimeout(function(){ ref.el.classList.remove("reveal"); }, ms);
   }
 
-  function judgeFlash(pc, tier, extraText){
+  // 弾き忘れの合図は、その拍の丸を赤くするだけ。
+  // どの音だったかは明かさず、どの拍だったかだけが伝わる。
+  let missDotTimer = null;
+  function flashMiss(slot){
+    const dot = beatDots[Math.floor(slot / 2)];
+    if(!dot) return;
+    // 次の拍に食い込まない長さ
+    const ms = Math.max(150, Math.min(400, (60 / bpm) * 1000 * 0.55));
+    if(missDotTimer) clearTimeout(missDotTimer);
+    beatDots.forEach(function(d){ d.classList.remove("missed"); });
+    void dot.offsetWidth;
+    dot.classList.add("missed");
+    missDotTimer = setTimeout(function(){
+      dot.classList.remove("missed");
+      missDotTimer = null;
+    }, ms);
+  }
+
+  function judgeFlash(pc, tier, extraText, ms){
     const ref = keyEls[pc]; if(!ref) return;
+    const life = ms || 640;
     const cls = tier === "great" ? "correct" : tier === "near" ? "near" : "wrong";
     ref.el.classList.add(cls);
-    setTimeout(() => ref.el.classList.remove(cls), 220);
+    setTimeout(() => ref.el.classList.remove(cls), Math.min(220, life));
     const pop = document.createElement("div");
     pop.className = "judge-pop " + (tier === "great" ? "ok" : tier === "near" ? "near" : "bad");
     pop.textContent = (tier === "great" ? "◎" : tier === "near" ? "△" : "✕") + (extraText || "");
     ref.el.appendChild(pop);
-    setTimeout(() => { if(pop.parentNode) pop.parentNode.removeChild(pop); }, 640);
+    setTimeout(() => { if(pop.parentNode) pop.parentNode.removeChild(pop); }, life);
   }
 
   /* =========================================================
@@ -1690,14 +1737,19 @@
 
       // 判定窓が閉じた瞬間に「弾き忘れ」を表示(即時フィードバック)
       noteSlots.forEach((s) => {
-        at(start + offsets[s] + lateWindowFor(offsets[s], duration, w) + 0.02 + latencyLearned, function(){
+        // 窓が閉じた直後に知らせる。余白は取りこぼしを防ぐ最小限だけ。
+        at(start + offsets[s] + lateWindowFor(offsets[s], duration, w) + 0.008 + latencyLearned, function(){
           if(rec.answerMap[s] === undefined){
             rec.answerMap[s] = { tier: "miss", pc: pattern[s] };
             errStats.miss += 1;
             logDegree(pattern[s], true);
-            // 弾き忘れも同じ見せ方。鳴るはずだった鍵盤を金枠で示して✕を出す
-            revealKey(pattern[s]);
-            judgeFlash(pattern[s], "miss", "");
+            // どの拍を落としたかは全レベル共通で示す。
+            // ヒントが有効なレベルでは、正しい鍵盤を金枠+✕で示す。
+            flashMiss(s);
+            if(effectiveReveal() !== "ear"){
+              revealKey(pattern[s]);
+              judgeFlash(pattern[s], "miss", "", revealMs());
+            }
           }
         });
       });
@@ -1809,6 +1861,8 @@
     killSeqBus();   // 先読みで予約済みのクリック・見本の音もここで全部落とす
     scheduledMeasures = [];
     setBeat(-1);
+    if(missDotTimer){ clearTimeout(missDotTimer); missDotTimer = null; }
+    beatDots.forEach(function(d){ d.classList.remove("missed"); });
     clearKeyFx();
     setPianoMode("idle");
     startBtn.textContent = "はじめる";
